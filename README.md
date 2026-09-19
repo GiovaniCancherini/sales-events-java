@@ -39,20 +39,24 @@ Isso sobe Postgres, Kafka (KRaft, 1 broker) e os dois serviços.
 
 ### Testar o fluxo
 
-```bash
-curl -X POST http://localhost:8081/orders \
-  -H "Content-Type: application/json" \
-  -d '{"customerId":"cliente-1","product":"Notebook","totalAmount":4500.00}'
+Antes de criar pedido, confirme que a API subiu:
+
+```
+curl http://localhost:8081/actuator/health
+```
+
+Deve responder `{"status":"UP"}`. Os comandos abaixo estão em uma linha só, com aspas duplas escapadas, e funcionam tanto no CMD do Windows quanto no Git Bash/Linux/macOS:
+
+```
+curl -X POST http://localhost:8081/orders -H "Content-Type: application/json" -d "{\"customerId\":\"cliente-1\",\"product\":\"Notebook\",\"totalAmount\":4500.00}"
 ```
 
 Acompanhe o log do `order-consumer` (`docker compose logs -f order-consumer`) — o evento `OrderCreatedEvent` deve aparecer processado em segundos.
 
-Atualizar um pedido:
+Atualizar um pedido (use o `id` devolvido na criação):
 
-```bash
-curl -X PUT http://localhost:8081/orders/{id} \
-  -H "Content-Type: application/json" \
-  -d '{"totalAmount":4800.00}'
+```
+curl -X PUT http://localhost:8081/orders/{id} -H "Content-Type: application/json" -d "{\"totalAmount\":4800.00}"
 ```
 
 ## Decisões de arquitetura (e seus trade-offs)
