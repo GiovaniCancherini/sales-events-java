@@ -1,0 +1,69 @@
+package com.giovanicancherini.orderservice.service;
+
+import com.giovanicancherini.orderservice.api.OrderCreateRequest;
+import com.giovanicancherini.orderservice.api.OrderUpdateRequest;
+import com.giovanicancherini.orderservice.domain.Order;
+import com.giovanicancherini.orderservice.event.OrderCreatedEvent;
+import com.giovanicancherini.orderservice.event.OrderEventPublisher;
+import com.giovanicancherini.orderservice.event.OrderUpdatedEvent;
+import com.giovanicancherini.orderservice.repository.OrderRepository;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class OrderService {
+
+    private final OrderRepository orderRepository;
+    private final OrderEventPublisher eventPublisher;
+
+    public OrderService(OrderRepository orderRepository, OrderEventPublisher eventPublisher) {
+        this.orderRepository = orderRepository;
+        this.eventPublisher = eventPublisher;
+    }
+
+    @Transactional
+    public Order create(OrderCreateRequest request) {
+        Order order = new Order(request.customerId(), request.product(), request.totalAmount());
+        order = orderRepository.save(order);
+
+        eventPublisher.publishCreated(new OrderCreatedEvent(
+                order.getId(),
+                order.getCustomerId(),
+                order.getProduct(),
+                order.getTotalAmount(),
+                Instant.now()
+        ));
+
+        return order;
+    }
+
+    @Transactional
+    public Order update(UUID id, OrderUpdateRequest request) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
+
+        order.markUpdated(request.totalAmount());
+
+        eventPublisher.publishUpdated(new OrderUpdatedEvent(
+                order.getId(),
+                order.getCustomerId(),
+                order.getTotalAmount(),
+                Instant.now()
+        ));
+
+        return order;
+    }
+
+    public Order getById(UUID id) {
+        return orderRepository.findById(id)
+                .orElseThrow(() -> new OrderNotFoundException(id));
+    }
+
+    public List<Order> listAll() {
+        return orderRepository.findAll();
+    }
+}
