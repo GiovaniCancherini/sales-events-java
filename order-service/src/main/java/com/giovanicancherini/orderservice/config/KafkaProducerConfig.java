@@ -1,7 +1,5 @@
 package com.giovanicancherini.orderservice.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,7 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
-import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.kafka.support.serializer.JacksonJsonSerializer;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,9 +26,9 @@ public class KafkaProducerConfig {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
 
-        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        JsonMapper jsonMapper = JsonMapper.builder().build();
         return new DefaultKafkaProducerFactory<>(
-                configProps, new StringSerializer(), new JsonSerializer<>(objectMapper));
+                configProps, new StringSerializer(), new JacksonJsonSerializer<>(jsonMapper));
     }
 
     @Bean
