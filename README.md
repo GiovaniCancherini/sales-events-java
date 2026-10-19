@@ -67,7 +67,7 @@ Suba só a infraestrutura:
 docker compose up -d postgres kafka
 ```
 
-Depois rode `OrderServiceApplication` ou `OrderConsumerApplication` pela IDE. Os valores padrão do `application.properties` já apontam para as portas que o compose publica no host: Postgres em `localhost:5433` (e não 5432, para não colidir com um Postgres local) e Kafka em `localhost:29092`. Quando o serviço roda dentro do compose, as variáveis `DB_HOST`, `DB_PORT` e `KAFKA_BOOTSTRAP` trocam esses valores pelos endereços da rede interna.
+Depois rode `OrderServiceApplication` ou `OrderConsumerApplication` pela IDE. Os valores padrão do `application.properties` já apontam para as portas que o compose publica no host: Postgres em `localhost:5433` (e não 5432, para não colidir com um Postgres local) e Kafka em `localhost:29092`. Quando o serviço roda dentro do compose, as variáveis `DB_HOST`, `DB_PORT` e `KAFKA_BOOTSTRAP` trocam esses valores pelos endereços da rede interna. O tópico `orders` é criado pelo `order-service`: se o consumidor subir antes, ele espera até o tópico existir, com avisos `UNKNOWN_TOPIC_OR_PARTITION` no log.
 
 ### Debug remoto (opcional)
 
@@ -96,6 +96,9 @@ Kafka garante ordem *dentro* de uma partição, não entre partições. Usar `cu
 
 **Por que 3 partições?**
 Permite até 3 consumidores em paralelo no mesmo consumer group, sem quebrar a garantia de ordem por cliente. Número escolhido pelo tamanho do projeto, não por medição de carga real.
+
+**Por que a criação automática de tópicos está desligada?**
+O tópico `orders` tem dono: quem o declara é o `order-service`, com 3 partições (`NewTopic`). Com a criação automática ligada, que é o padrão do broker, o consumidor sobe mais rápido e cria o tópico só por assiná-lo, com o padrão de 1 partição. O `order-service` aumenta para 3 logo depois, mas o consumidor só enxerga as partições novas na próxima atualização de metadados, até 5 minutos depois, e os eventos que caem nelas ficam parados até lá. Desligada, como costuma ser em produção, a criação fica só com o dono: o consumidor espera o tópico existir (são os avisos `UNKNOWN_TOPIC_OR_PARTITION` na subida) e já entra com as 3 partições.
 
 **Por que sem schema registry (Avro)?**
 O contrato do evento (`OrderCreatedEvent`/`OrderUpdatedEvent`) está duplicado manualmente entre os dois serviços como POJOs Java. Funciona pelo tamanho do projeto; numa arquitetura maior com mais times e mais consumidores, isso viraria uma fonte real de bug de contrato quebrado. A correção certa é Avro ou Protobuf com Schema Registry, validando compatibilidade de schema no CI.
