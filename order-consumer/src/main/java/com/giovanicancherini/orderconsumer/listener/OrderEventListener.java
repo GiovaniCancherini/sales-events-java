@@ -14,9 +14,11 @@ public class OrderEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(OrderEventListener.class);
 
-    // JsonMapper próprio, não injetado pelo Spring: evita depender de um bean
-    // autoconfigured, que nesta versão do Spring Boot não existe pronto para esse tipo.
-    private final JsonMapper jsonMapper = JsonMapper.builder().build();
+    private final JsonMapper jsonMapper;
+
+    public OrderEventListener(JsonMapper jsonMapper) {
+        this.jsonMapper = jsonMapper;
+    }
 
     @KafkaListener(topics = "${app.kafka.topic.orders}", groupId = "order-consumer")
     public void onMessage(String payload) {
@@ -25,7 +27,7 @@ public class OrderEventListener {
         // O tópico carrega dois tipos de evento. Sem schema registry aqui,
         // a presença do campo "product" distingue criação de atualização.
         if (node.has("product")) {
-            OrderCreatedEvent event = jsonMapper    .treeToValue(node, OrderCreatedEvent.class);
+            OrderCreatedEvent event = jsonMapper.treeToValue(node, OrderCreatedEvent.class);
             log.info("Pedido criado: cliente={} produto={} valor={}",
                     event.customerId(), event.product(), event.totalAmount());
         } else {
