@@ -19,7 +19,7 @@ public class Order {
     @Column(nullable = false)
     private String product;
 
-    @Column(nullable = false)
+    @Column(nullable = false, precision = 18, scale = 2)
     private BigDecimal totalAmount;
 
     @Enumerated(EnumType.STRING)
@@ -39,16 +39,21 @@ public class Order {
     public Order(String customerId, String product, BigDecimal totalAmount) {
         this.customerId = customerId;
         this.product = product;
-        this.totalAmount = totalAmount;
+        this.totalAmount = money(totalAmount);
         this.status = OrderStatus.CREATED;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
 
     public void markUpdated(BigDecimal newTotalAmount) {
-        this.totalAmount = newTotalAmount;
+        this.totalAmount = money(newTotalAmount);
         this.status = OrderStatus.UPDATED;
         this.updatedAt = Instant.now();
+    }
+
+    // Sem arredondar: a API já recusa mais de 2 casas, então se chegar aqui é bug.
+    private static BigDecimal money(BigDecimal value) {
+        return value.setScale(2);
     }
 
     public UUID getId() {
