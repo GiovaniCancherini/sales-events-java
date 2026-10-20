@@ -20,7 +20,7 @@ public class OrderEventListener {
         this.jsonMapper = jsonMapper;
     }
 
-    @KafkaListener(topics = "${app.kafka.topic.orders}", groupId = "order-consumer")
+    @KafkaListener(topics = "${app.kafka.topic.orders}")
     public void onMessage(String payload) {
         JsonNode node = jsonMapper.readTree(payload);
 
