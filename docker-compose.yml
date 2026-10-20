@@ -31,6 +31,11 @@ services:
       # Tópico criado só pelo order-service, com 3 partições
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       CLUSTER_ID: ciWo7IWazngRchmPES6q5A==
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 10s
+      retries: 20
 
   order-service:
     build: ./order-service
@@ -44,7 +49,7 @@ services:
       postgres:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
 
   order-consumer:
     build: ./order-consumer
@@ -54,4 +59,4 @@ services:
       KAFKA_BOOTSTRAP: kafka:9092
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
