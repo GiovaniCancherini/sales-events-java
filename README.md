@@ -59,6 +59,12 @@ Atualizar um pedido (use o `id` devolvido na criação):
 curl -X PUT http://localhost:8081/orders/{id} -H "Content-Type: application/json" -d "{\"totalAmount\":4800.00}"
 ```
 
+Listar pedidos, paginado (padrão: 20 por página, mais recentes primeiro):
+
+```
+curl "http://localhost:8081/orders?page=0&size=10"
+```
+
 ### Rodar um serviço pela IDE
 
 Suba só a infraestrutura:

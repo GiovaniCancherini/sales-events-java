@@ -7,11 +7,12 @@ import com.giovanicancherini.orderservice.event.OrderCreatedEvent;
 import com.giovanicancherini.orderservice.event.OrderEventPublisher;
 import com.giovanicancherini.orderservice.event.OrderUpdatedEvent;
 import com.giovanicancherini.orderservice.repository.OrderRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -66,7 +67,7 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(id));
     }
 
-    public List<Order> listAll() {
-        return orderRepository.findAll();
+    public Page<Order> list(Pageable pageable) {
+        return orderRepository.findAll(pageable);
     }
 }

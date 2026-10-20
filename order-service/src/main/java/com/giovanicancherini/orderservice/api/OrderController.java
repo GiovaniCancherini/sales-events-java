@@ -5,12 +5,16 @@ import com.giovanicancherini.orderservice.service.OrderNotFoundException;
 import com.giovanicancherini.orderservice.service.OrderService;
 import jakarta.validation.Valid;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.core.PropertyReferenceException;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -41,8 +45,9 @@ public class OrderController {
     }
 
     @GetMapping
-    public List<OrderResponse> listAll() {
-        return orderService.listAll().stream().map(OrderResponse::from).toList();
+    public PagedModel<OrderResponse> list(
+            @PageableDefault(sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return new PagedModel<>(orderService.list(pageable).map(OrderResponse::from));
     }
 
     @ExceptionHandler(OrderNotFoundException.class)
@@ -55,6 +60,12 @@ public class OrderController {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ErrorResponse handleConcurrentUpdate(OptimisticLockingFailureException ex) {
         return new ErrorResponse("O pedido foi alterado por outra requisição. Consulte de novo e repita a alteração.");
+    }
+
+    @ExceptionHandler(PropertyReferenceException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleInvalidSort(PropertyReferenceException ex) {
+        return new ErrorResponse("Campo de ordenação inválido: " + ex.getPropertyName());
     }
 
     public record ErrorResponse(String message) {
