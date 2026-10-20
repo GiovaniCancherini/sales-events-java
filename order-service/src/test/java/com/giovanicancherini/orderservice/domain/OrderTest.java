@@ -22,4 +22,16 @@ class OrderTest {
 				.isInstanceOf(ArithmeticException.class);
 	}
 
+	@Test
+	void cancelledOrderCannotBeUpdatedOrCancelledAgain() {
+		Order order = new Order("cliente-1", "Notebook", new BigDecimal("4500.00"));
+		order.cancel();
+
+		assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+		assertThatThrownBy(() -> order.updateTotalAmount(new BigDecimal("1.00")))
+				.isInstanceOf(OrderAlreadyCancelledException.class);
+		assertThatThrownBy(order::cancel)
+				.isInstanceOf(OrderAlreadyCancelledException.class);
+	}
+
 }

@@ -65,6 +65,12 @@ Listar pedidos, paginado (padrão: 20 por página, mais recentes primeiro):
 curl "http://localhost:8081/orders?page=0&size=10"
 ```
 
+Cancelar um pedido (depois disso, alterar ou cancelar de novo devolve 409):
+
+```
+curl -X POST http://localhost:8081/orders/{id}/cancel
+```
+
 ### Rodar um serviço pela IDE
 
 Suba só a infraestrutura:
@@ -90,7 +96,7 @@ cd order-service && ./mvnw test
 cd ../order-consumer && ./mvnw test
 ```
 
-No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka no `order-service`, só Kafka no `order-consumer`), então não dependem do compose nem de porta livre na máquina. Hoje, cada serviço tem o teste de contexto (`contextLoads`), que confirma que a aplicação sobe contra banco e Kafka de verdade.
+No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka no `order-service`, só Kafka no `order-consumer`), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no consumidor, um teste de ida e volta pelo Kafka que confirma o tipo pelo header e o valor com as 2 casas.
 
 ## Decisões de arquitetura (e seus trade-offs)
 
@@ -107,10 +113,10 @@ Permite até 3 consumidores em paralelo no mesmo consumer group, sem quebrar a g
 O tópico `orders` tem dono: quem o declara é o `order-service`, com 3 partições (`NewTopic`). Com a criação automática ligada, que é o padrão do broker, o consumidor sobe mais rápido e cria o tópico só por assiná-lo, com o padrão de 1 partição. O `order-service` aumenta para 3 logo depois, mas o consumidor só enxerga as partições novas na próxima atualização de metadados, até 5 minutos depois, e os eventos que caem nelas ficam parados até lá. Desligada, como costuma ser em produção, a criação fica só com o dono: o consumidor espera o tópico existir (são os avisos `UNKNOWN_TOPIC_OR_PARTITION` na subida) e já entra com as 3 partições. Como o tópico só nasce na subida do `order-service`, ele usa `spring.kafka.admin.fail-fast=true`: se não conseguir criar o tópico, não sobe. Sem isso, ficaria no ar com health UP e todo POST falhando depois de 60s. No compose, os dois serviços esperam o healthcheck do Kafka.
 
 **Por que sem schema registry (Avro)?**
-O contrato do evento (`OrderCreatedEvent`/`OrderUpdatedEvent`) está duplicado manualmente entre os dois serviços como POJOs Java. Funciona pelo tamanho do projeto; numa arquitetura maior com mais times e mais consumidores, isso viraria uma fonte real de bug de contrato quebrado. A correção certa é Avro ou Protobuf com Schema Registry, validando compatibilidade de schema no CI.
+O contrato dos eventos (`OrderCreatedEvent`, `OrderUpdatedEvent` e `OrderCancelledEvent`, mais os tokens do header de tipo) está duplicado manualmente entre os dois serviços como records Java. Funciona pelo tamanho do projeto; numa arquitetura maior com mais times e mais consumidores, isso viraria uma fonte real de bug de contrato quebrado. A correção certa é Avro ou Protobuf com Schema Registry, validando compatibilidade de schema no CI.
 
-**Por que o consumidor lê como `String` em vez de usar o `JacksonJsonDeserializer` tipado do Spring Kafka?**
-O tópico carrega dois tipos de evento (criação e atualização), e o `JacksonJsonDeserializer` do Spring Kafka usa um header com o nome completo da classe do *produtor* para decidir o tipo, e esse nome não bate com o pacote do *consumidor*, já que são serviços diferentes. Ler como texto e decidir o tipo pelo conteúdo (presença do campo `product`) evita essa armadilha sem precisar configurar mapeamento de tipos entre pacotes.
+**Como o consumidor sabe o tipo do evento?**
+O tópico carrega três tipos de evento (criação, atualização e cancelamento). Por padrão, o `JacksonJsonSerializer` grava no header `__TypeId__` o nome completo da classe do *produtor*, que não existe no *consumidor*, já que são serviços diferentes. Por isso os dois lados configuram `spring.json.type.mapping` com os mesmos tokens (`created`, `updated`, `cancelled`): o header leva só o token, e cada serviço o traduz para a própria classe. O consumidor desserializa direto no tipo certo, com um `@KafkaHandler` por evento, e o `ErrorHandlingDeserializer` impede que uma mensagem que não desserializa trave a partição: ela é logada e pulada. Antes, o consumidor lia texto e decidia pela presença do campo `product`, o que funcionava com dois tipos e quebraria no terceiro.
 
 **Gap conhecido, não resolvido de propósito: dual write.**
 `OrderService.create()` salva no Postgres e publica no Kafka na mesma chamada, sem garantia atômica entre os dois. Se o commit no banco for bem-sucedido mas o Kafka falhar (ou vice-versa), o estado diverge. A correção correta é o **padrão Outbox** (grava o evento numa tabela na mesma transação do banco, e um processo separado publica no Kafka a partir dessa tabela). Não implementado aqui por escopo do projeto, mas é a primeira coisa que eu mudaria numa versão de produção.

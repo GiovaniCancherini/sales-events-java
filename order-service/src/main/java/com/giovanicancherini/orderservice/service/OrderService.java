@@ -3,6 +3,7 @@ package com.giovanicancherini.orderservice.service;
 import com.giovanicancherini.orderservice.api.OrderCreateRequest;
 import com.giovanicancherini.orderservice.api.OrderUpdateRequest;
 import com.giovanicancherini.orderservice.domain.Order;
+import com.giovanicancherini.orderservice.event.OrderCancelledEvent;
 import com.giovanicancherini.orderservice.event.OrderCreatedEvent;
 import com.giovanicancherini.orderservice.event.OrderEventPublisher;
 import com.giovanicancherini.orderservice.event.OrderUpdatedEvent;
@@ -45,10 +46,9 @@ public class OrderService {
 
     @Transactional
     public Order update(UUID id, OrderUpdateRequest request) {
-        Order order = orderRepository.findById(id)
-                .orElseThrow(() -> new OrderNotFoundException(id));
+        Order order = getById(id);
 
-        order.markUpdated(request.totalAmount());
+        order.updateTotalAmount(request.totalAmount());
         // Se outra requisição alterou o pedido no meio, o @Version falha aqui, antes do evento.
         orderRepository.flush();
 
@@ -56,6 +56,22 @@ public class OrderService {
                 order.getId(),
                 order.getCustomerId(),
                 order.getTotalAmount(),
+                Instant.now()
+        ));
+
+        return order;
+    }
+
+    @Transactional
+    public Order cancel(UUID id) {
+        Order order = getById(id);
+
+        order.cancel();
+        orderRepository.flush();
+
+        eventPublisher.publishCancelled(new OrderCancelledEvent(
+                order.getId(),
+                order.getCustomerId(),
                 Instant.now()
         ));
 

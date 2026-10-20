@@ -1,6 +1,7 @@
 package com.giovanicancherini.orderservice.api;
 
 import com.giovanicancherini.orderservice.domain.Order;
+import com.giovanicancherini.orderservice.domain.OrderAlreadyCancelledException;
 import com.giovanicancherini.orderservice.service.OrderNotFoundException;
 import com.giovanicancherini.orderservice.service.OrderService;
 import jakarta.validation.Valid;
@@ -39,6 +40,11 @@ public class OrderController {
         return OrderResponse.from(orderService.update(id, request));
     }
 
+    @PostMapping("/{id}/cancel")
+    public OrderResponse cancel(@PathVariable UUID id) {
+        return OrderResponse.from(orderService.cancel(id));
+    }
+
     @GetMapping("/{id}")
     public OrderResponse getById(@PathVariable UUID id) {
         return OrderResponse.from(orderService.getById(id));
@@ -53,6 +59,12 @@ public class OrderController {
     @ExceptionHandler(OrderNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFound(OrderNotFoundException ex) {
+        return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(OrderAlreadyCancelledException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleAlreadyCancelled(OrderAlreadyCancelledException ex) {
         return new ErrorResponse(ex.getMessage());
     }
 

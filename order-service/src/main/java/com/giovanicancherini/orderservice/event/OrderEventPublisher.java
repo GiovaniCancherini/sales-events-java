@@ -25,4 +25,8 @@ public class OrderEventPublisher {
     public void publishUpdated(OrderUpdatedEvent event) {
         kafkaTemplate.send(topic, event.customerId(), event);
     }
+
+    public void publishCancelled(OrderCancelledEvent event) {
+        kafkaTemplate.send(topic, event.customerId(), event);
+    }
 }

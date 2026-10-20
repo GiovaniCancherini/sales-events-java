@@ -48,10 +48,22 @@ public class Order {
         this.updatedAt = this.createdAt;
     }
 
-    public void markUpdated(BigDecimal newTotalAmount) {
+    public void updateTotalAmount(BigDecimal newTotalAmount) {
+        ensureNotCancelled();
         this.totalAmount = money(newTotalAmount);
-        this.status = OrderStatus.UPDATED;
         this.updatedAt = Instant.now();
+    }
+
+    public void cancel() {
+        ensureNotCancelled();
+        this.status = OrderStatus.CANCELLED;
+        this.updatedAt = Instant.now();
+    }
+
+    private void ensureNotCancelled() {
+        if (status == OrderStatus.CANCELLED) {
+            throw new OrderAlreadyCancelledException(id);
+        }
     }
 
     // Sem arredondar: a API já recusa mais de 2 casas, então se chegar aqui é bug.
