@@ -28,7 +28,8 @@ public class OrderService {
     @Transactional
     public Order create(OrderCreateRequest request) {
         Order order = new Order(request.customerId(), request.product(), request.totalAmount());
-        order = orderRepository.save(order);
+        // Flush antes de publicar: se o banco recusar a escrita, o evento não sai.
+        order = orderRepository.saveAndFlush(order);
 
         eventPublisher.publishCreated(new OrderCreatedEvent(
                 order.getId(),
@@ -47,6 +48,8 @@ public class OrderService {
                 .orElseThrow(() -> new OrderNotFoundException(id));
 
         order.markUpdated(request.totalAmount());
+        // Se outra requisição alterou o pedido no meio, o @Version falha aqui, antes do evento.
+        orderRepository.flush();
 
         eventPublisher.publishUpdated(new OrderUpdatedEvent(
                 order.getId(),

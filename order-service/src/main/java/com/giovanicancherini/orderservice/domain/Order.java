@@ -32,6 +32,9 @@ public class Order {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    @Version
+    private Long version;
+
     protected Order() {
         // exigido pelo JPA
     }

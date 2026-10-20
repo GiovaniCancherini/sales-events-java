@@ -1,8 +1,10 @@
 package com.giovanicancherini.orderservice.api;
 
 import com.giovanicancherini.orderservice.domain.Order;
+import com.giovanicancherini.orderservice.service.OrderNotFoundException;
 import com.giovanicancherini.orderservice.service.OrderService;
 import jakarta.validation.Valid;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,10 +45,16 @@ public class OrderController {
         return orderService.listAll().stream().map(OrderResponse::from).toList();
     }
 
-    @ExceptionHandler(com.giovanicancherini.orderservice.service.OrderNotFoundException.class)
+    @ExceptionHandler(OrderNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
-    public ErrorResponse handleNotFound(com.giovanicancherini.orderservice.service.OrderNotFoundException ex) {
+    public ErrorResponse handleNotFound(OrderNotFoundException ex) {
         return new ErrorResponse(ex.getMessage());
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ErrorResponse handleConcurrentUpdate(OptimisticLockingFailureException ex) {
+        return new ErrorResponse("O pedido foi alterado por outra requisição. Consulte de novo e repita a alteração.");
     }
 
     public record ErrorResponse(String message) {
