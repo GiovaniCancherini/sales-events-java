@@ -100,6 +100,8 @@ No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Tes
 
 ## Decisões de arquitetura (e seus trade-offs)
 
+Aqui fica o resumo. As decisões mais recentes têm registro completo, com contexto, alternativas e consequências, em [docs/adr](docs/adr/). O que quebrou no caminho, e por quê, está no [APRENDIZADO.md](APRENDIZADO.md).
+
 **Por que Kafka em vez de REST síncrono entre os dois serviços?**
 Desacopla o `order-service` de precisar saber quem consome o evento, e quantos consumidores existem. Se `order-consumer` cair, o evento fica retido no tópico até ele voltar. Numa chamada REST síncrona, isso seria uma falha imediata.
 
@@ -119,7 +121,7 @@ O contrato dos eventos (`OrderCreatedEvent`, `OrderUpdatedEvent` e `OrderCancell
 O tópico carrega três tipos de evento (criação, atualização e cancelamento). Por padrão, o `JacksonJsonSerializer` grava no header `__TypeId__` o nome completo da classe do *produtor*, que não existe no *consumidor*, já que são serviços diferentes. Por isso os dois lados configuram `spring.json.type.mapping` com os mesmos tokens (`created`, `updated`, `cancelled`): o header leva só o token, e cada serviço o traduz para a própria classe. O consumidor desserializa direto no tipo certo, com um `@KafkaHandler` por evento, e o `ErrorHandlingDeserializer` impede que uma mensagem que não desserializa trave a partição: ela é logada e pulada. Antes, o consumidor lia texto e decidia pela presença do campo `product`, o que funcionava com dois tipos e quebraria no terceiro.
 
 **Gap conhecido, não resolvido de propósito: dual write.**
-`OrderService.create()` salva no Postgres e publica no Kafka na mesma chamada, sem garantia atômica entre os dois. Se o commit no banco for bem-sucedido mas o Kafka falhar (ou vice-versa), o estado diverge. A correção correta é o **padrão Outbox** (grava o evento numa tabela na mesma transação do banco, e um processo separado publica no Kafka a partir dessa tabela). Não implementado aqui por escopo do projeto, mas é a primeira coisa que eu mudaria numa versão de produção.
+`OrderService.create()` salva no Postgres e publica no Kafka na mesma chamada, sem garantia atômica entre os dois. Se o commit no banco for bem-sucedido mas o Kafka falhar (ou vice-versa), o estado diverge. O flush antes de publicar diminui essa janela, porque erro de banco ou conflito de versão aparece antes de o evento sair, mas não a fecha. A correção correta é o **padrão Outbox** (grava o evento numa tabela na mesma transação do banco, e um processo separado publica no Kafka a partir dessa tabela). Não implementado aqui por escopo do projeto, mas é a primeira coisa que eu mudaria numa versão de produção.
 
 **Docker Compose em vez de Kubernetes de verdade.**
 Para o tamanho deste projeto, Compose já resolve. Um manifest básico de Kubernetes (Deployment + Service) pode ser adicionado depois. O valor dele aparece em self-healing, scaling horizontal e config como código, nenhum dos quais este projeto precisa de fato pra funcionar.
@@ -128,8 +130,10 @@ Para o tamanho deste projeto, Compose já resolve. Um manifest básico de Kubern
 
 ```
 sales-events-java/
+├── APRENDIZADO.md       # o que quebrou, por quê e o que ficou de cada correção
 ├── docker-compose.yml
 ├── docker-compose.debug.yml   # override opcional: debug remoto do order-service (porta 5005)
+├── docs/adr/            # registros de decisão de arquitetura (ADRs)
 ├── order-service/       # API REST + produtor Kafka + Postgres
 └── order-consumer/      # consumidor Kafka
 ```
