@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: orders
       POSTGRES_USER: orders
-      POSTGRES_PASSWORD: ***REMOVED***
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (veja .env.example)}
     ports:
       - "5433:5432"
     healthcheck:
@@ -44,6 +44,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (veja .env.example)}
       KAFKA_BOOTSTRAP: kafka:9092
     depends_on:
       postgres:
