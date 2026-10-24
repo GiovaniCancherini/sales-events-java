@@ -106,6 +106,16 @@ cd ../order-consumer && ./mvnw test
 
 No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka no `order-service`, só Kafka no `order-consumer`), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no consumidor, um teste de ida e volta pelo Kafka que confirma o tipo pelo header e o valor com as 2 casas.
 
+## Verificação de segredos
+
+Todo commit passa pelo [gitleaks](https://github.com/gitleaks/gitleaks), num hook de pre-commit versionado. Além das regras padrão, o [`.gitleaks.toml`](.gitleaks.toml) acusa senha literal em arquivo de configuração (`docker-compose*.yml`, `.properties`, `.env`) e credencial dentro de URL de conexão. Ative uma vez por clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Um commit com segredo é recusado, mostrando arquivo e linha. Para varrer o histórico inteiro: `gitleaks git --log-opts="--all"`.
+
 ## Decisões de arquitetura (e seus trade-offs)
 
 Aqui fica o resumo. As decisões mais recentes têm registro completo, com contexto, alternativas e consequências, em [docs/adr](docs/adr/). O que quebrou no caminho, e por quê, está no [APRENDIZADO.md](APRENDIZADO.md).
