@@ -12,3 +12,6 @@ target/
 
 ### VS Code ###
 .vscode/
+
+### Segredos locais (veja .env.example) ###
+.env
