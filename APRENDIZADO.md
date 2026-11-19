@@ -73,3 +73,10 @@ O que quebrou, por que quebrou e o que ficou de cada correção. As decisões de
 - **O que mudou:** a chave voltou a ser `POSTGRES_PASSWORD`, com o valor vindo de `ORDER_POSTGRES_PASSWORD` e `INVENTORY_POSTGRES_PASSWORD`. O `.env.example` usa os nomes novos.
 - **O que ficou:** no compose, o lado esquerdo é contrato da imagem e o lado direito é escolha do projeto. Renome só no lado direito.
 
+
+## 19/11/2026: o DLT recebia a mensagem sem o tipo
+
+- **O que quebrou:** o teste do retry achava a mensagem no `orders.DLT`, mas sem o header `__TypeId__`. O ADR 7 dizia que o tipo ia junto, para poder reprocessar.
+- **Por quê:** o `JacksonJsonDeserializer` apaga os headers de tipo depois de desserializar (`spring.json.remove.type.headers` é `true` por padrão). Quando o recoverer copia os headers para o DLT, o tipo já não está lá.
+- **O que mudou:** `spring.json.remove.type.headers=false` no consumidor, e o teste confere o header `created` na mensagem do DLT.
+- **O que ficou:** a documentação dizia uma coisa e o código fazia outra, e só o teste do caminho de falha mostrou. Comportamento prometido em ADR precisa de teste.
