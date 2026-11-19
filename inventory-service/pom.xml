@@ -9,9 +9,9 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.giovanicancherini</groupId>
-	<artifactId>order-consumer</artifactId>
+	<artifactId>inventory-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>order-consumer</name>
+	<name>inventory-service</name>
 	<description/>
 	<url/>
 	<licenses>

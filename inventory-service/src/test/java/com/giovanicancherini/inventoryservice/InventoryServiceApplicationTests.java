@@ -1,4 +1,4 @@
-package com.giovanicancherini.orderconsumer;
+package com.giovanicancherini.inventoryservice;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.jupiter.api.Test;
@@ -19,7 +19,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 @Import(TestcontainersConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
-class OrderConsumerApplicationTests {
+class InventoryServiceApplicationTests {
 
 	@Autowired
 	KafkaTemplate<String, String> kafkaTemplate;

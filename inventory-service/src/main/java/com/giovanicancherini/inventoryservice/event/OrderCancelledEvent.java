@@ -1,4 +1,4 @@
-package com.giovanicancherini.orderconsumer.event;
+package com.giovanicancherini.inventoryservice.event;
 
 import java.time.Instant;
 import java.util.UUID;

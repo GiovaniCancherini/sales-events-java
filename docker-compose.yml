@@ -32,7 +32,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       CLUSTER_ID: ciWo7IWazngRchmPES6q5A==
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1",
+        ]
       interval: 5s
       timeout: 10s
       retries: 20
@@ -52,8 +56,8 @@ services:
       kafka:
         condition: service_healthy
 
-  order-consumer:
-    build: ./order-consumer
+  inventory-service:
+    build: ./inventory-service
     ports:
       - "8082:8082"
     environment:

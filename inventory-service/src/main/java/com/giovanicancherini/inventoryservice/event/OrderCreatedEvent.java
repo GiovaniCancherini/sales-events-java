@@ -1,4 +1,4 @@
-package com.giovanicancherini.orderconsumer.event;
+package com.giovanicancherini.inventoryservice.event;
 
 import java.math.BigDecimal;
 import java.time.Instant;
