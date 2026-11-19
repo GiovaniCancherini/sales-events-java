@@ -13,6 +13,20 @@ services:
       timeout: 5s
       retries: 10
 
+  postgres-inventory:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: ${INVENTORY_POSTGRES_PASSWORD:?Defina INVENTORY_POSTGRES_PASSWORD no .env (veja .env.example)}
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   kafka:
     image: apache/kafka:3.8.0
     ports:
@@ -61,7 +75,12 @@ services:
     ports:
       - "8082:8082"
     environment:
+      DB_HOST: postgres-inventory
+      DB_PORT: 5432
+      DB_PASSWORD: ${INVENTORY_POSTGRES_PASSWORD:?Defina INVENTORY_POSTGRES_PASSWORD no .env (veja .env.example)}
       KAFKA_BOOTSTRAP: kafka:9092
     depends_on:
+      postgres-inventory:
+        condition: service_healthy
       kafka:
         condition: service_healthy

@@ -3,6 +3,7 @@ package com.giovanicancherini.inventoryservice.listener;
 import com.giovanicancherini.inventoryservice.event.OrderCancelledEvent;
 import com.giovanicancherini.inventoryservice.event.OrderCreatedEvent;
 import com.giovanicancherini.inventoryservice.event.OrderUpdatedEvent;
+import com.giovanicancherini.inventoryservice.service.ReservationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.annotation.KafkaHandler;
@@ -17,12 +18,20 @@ public class OrderEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(OrderEventListener.class);
 
+    private final ReservationService reservationService;
+
+    public OrderEventListener(ReservationService reservationService) {
+        this.reservationService = reservationService;
+    }
+
     @KafkaHandler
     public void onCreated(OrderCreatedEvent event) {
         log.info("Pedido criado: cliente={} produto={} valor={}",
                 event.customerId(), event.product(), event.totalAmount());
+        reservationService.reserve(event);
     }
 
+    // Mudança de valor não mexe em estoque.
     @KafkaHandler
     public void onUpdated(OrderUpdatedEvent event) {
         log.info("Pedido atualizado: cliente={} novoValor={}",
@@ -33,5 +42,6 @@ public class OrderEventListener {
     public void onCancelled(OrderCancelledEvent event) {
         log.info("Pedido cancelado: cliente={} pedido={}",
                 event.customerId(), event.orderId());
+        reservationService.release(event);
     }
 }
