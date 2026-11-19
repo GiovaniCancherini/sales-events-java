@@ -87,7 +87,7 @@ Suba só a infraestrutura:
 docker compose up -d postgres kafka
 ```
 
-Depois rode `OrderServiceApplication` ou `OrderConsumerApplication` pela IDE. O `order-service` precisa da variável de ambiente `DB_PASSWORD` com o mesmo valor de `POSTGRES_PASSWORD` do `.env` (no IntelliJ, em `Run > Edit Configurations > Environment variables`). Os valores padrão do `application.properties` já apontam para as portas que o compose publica no host: Postgres em `localhost:5433` (e não 5432, para não colidir com um Postgres local) e Kafka em `localhost:29092`. Quando o serviço roda dentro do compose, as variáveis `DB_HOST`, `DB_PORT` e `KAFKA_BOOTSTRAP` trocam esses valores pelos endereços da rede interna. O tópico `orders` é criado pelo `order-service`, que por isso não sobe sem o Kafka no ar. Se o consumidor subir antes dele, espera até o tópico existir, com avisos `UNKNOWN_TOPIC_OR_PARTITION` no log.
+Depois rode `OrderServiceApplication` ou `OrderConsumerApplication` pela IDE. O `order-service` precisa da variável de ambiente `DB_PASSWORD` com o mesmo valor de `ORDER_POSTGRES_PASSWORD` do `.env` (no IntelliJ, em `Run > Edit Configurations > Environment variables`). Os valores padrão do `application.properties` já apontam para as portas que o compose publica no host: Postgres em `localhost:5433` (e não 5432, para não colidir com um Postgres local) e Kafka em `localhost:29092`. Quando o serviço roda dentro do compose, as variáveis `DB_HOST`, `DB_PORT` e `KAFKA_BOOTSTRAP` trocam esses valores pelos endereços da rede interna. O tópico `orders` é criado pelo `order-service`, que por isso não sobe sem o Kafka no ar. Se o consumidor subir antes dele, espera até o tópico existir, com avisos `UNKNOWN_TOPIC_OR_PARTITION` no log.
 
 ### Debug remoto (opcional)
 

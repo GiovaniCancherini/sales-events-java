@@ -9,7 +9,8 @@ public class OrderServiceApplication {
 	public static void main(String[] args) {
 		String dbPassword = System.getenv("DB_PASSWORD");
 		if (dbPassword == null || dbPassword.isBlank()) {
-			throw new IllegalStateException("DB_PASSWORD is not set. Set it to POSTGRES_PASSWORD from .env (see .env.example).");
+			throw new IllegalStateException(
+					"DB_PASSWORD is not set. Set it to ORDER_POSTGRES_PASSWORD from .env (see .env.example).");
 		}
 		SpringApplication.run(OrderServiceApplication.class, args);
 	}
