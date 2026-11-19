@@ -90,23 +90,45 @@ class InventoryServiceApplicationTests {
 		String poison = "nao-e-json-" + UUID.randomUUID();
 		send("created", "cliente-veneno", poison);
 
+		ConsumerRecord<?, ?> deadLetter = findInDeadLetterTopic(poison);
+		assertThat(deadLetter).isNotNull();
+		assertThat(deadLetter.headers().lastHeader(KafkaHeaders.DLT_EXCEPTION_FQCN)).isNotNull();
+	}
+
+	// Falha no processamento (produtor quebrou o contrato e mandou sem eventId): o INSERT em
+	// processed_events falha, o handler tenta 3 vezes e só então manda para o DLT, com o header
+	// de tipo original, para dar para reprocessar depois de corrigir.
+	@Test
+	void processingFailureIsRetriedThenSentToDeadLetterTopic(CapturedOutput output) throws Exception {
+		String customerId = "cliente-sem-event-id-" + UUID.randomUUID();
+		send("created", customerId, """
+				{"orderId":"%s","customerId":"%s","product":"Notebook",\
+				"totalAmount":4500.00,"occurredAt":"2026-10-19T20:00:00Z"}"""
+				.formatted(UUID.randomUUID(), customerId));
+
+		ConsumerRecord<?, ?> deadLetter = findInDeadLetterTopic(customerId);
+		assertThat(deadLetter).isNotNull();
+		assertThat(new String(deadLetter.headers().lastHeader(AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME).value(),
+				StandardCharsets.UTF_8)).isEqualTo("created");
+		assertThat(output.getOut().split("Pedido criado: cliente=" + customerId + " ", -1)).hasSize(4);
+	}
+
+	private ConsumerRecord<?, ?> findInDeadLetterTopic(String valueFragment) {
 		Properties overrides = new Properties();
 		overrides.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 		overrides.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
 		overrides.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-		try (Consumer<?, ?> consumer = consumerFactory.createConsumer("dlt-test", null, null, overrides)) {
+		try (Consumer<?, ?> consumer = consumerFactory.createConsumer("dlt-test-" + UUID.randomUUID(), null, null, overrides)) {
 			consumer.subscribe(List.of(deadLetterTopic));
-			ConsumerRecord<?, ?> deadLetter = null;
 			long deadline = System.currentTimeMillis() + 30_000;
-			while (deadLetter == null && System.currentTimeMillis() < deadline) {
+			while (System.currentTimeMillis() < deadline) {
 				for (ConsumerRecord<?, ?> record : consumer.poll(Duration.ofMillis(500))) {
-					if (poison.equals(record.value())) {
-						deadLetter = record;
+					if (String.valueOf(record.value()).contains(valueFragment)) {
+						return record;
 					}
 				}
 			}
-			assertThat(deadLetter).isNotNull();
-			assertThat(deadLetter.headers().lastHeader(KafkaHeaders.DLT_EXCEPTION_FQCN)).isNotNull();
+			return null;
 		}
 	}
 
