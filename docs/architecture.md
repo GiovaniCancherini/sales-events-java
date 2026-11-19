@@ -190,4 +190,4 @@ Recomendação: começar na v22 (ou v21, se a biblioteca de federação escolhid
 5. Fase 5: `billing-consumer` .NET e remote catalog.
 6. Fase 6: deploy em plano gratuito.
 
-Escopo e estimativas: `4-carreira/projetos/sales-platform/escopo.md`.
+Escopo e estimativas: [scope.md](scope.md).
