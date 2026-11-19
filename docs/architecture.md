@@ -1,6 +1,6 @@
 # Arquitetura: de onde estamos para onde vamos
 
-Documento de trabalho da evolução do projeto: do par `order-service` e `order-consumer` para uma plataforma de vendas ponta a ponta, com front-end em micro front-ends Angular, mensageria, serviço .NET, observabilidade e deploy em plano gratuito. Os diagramas são Mermaid (o GitHub os renderiza).
+Documento de trabalho da evolução do projeto: do par `order-service` e `inventory-service` para uma plataforma de vendas ponta a ponta, com front-end em micro front-ends Angular, mensageria, serviço .NET, observabilidade e deploy em plano gratuito. Os diagramas são Mermaid (o GitHub os renderiza).
 
 ## 1. Visão macro (contexto)
 
@@ -11,11 +11,12 @@ flowchart LR
     U[Cliente HTTP<br/>curl ou Postman] -->|REST| OS[order-service<br/>Spring Boot]
     OS -->|SQL| PG[(PostgreSQL)]
     OS -->|evento| K{{Kafka<br/>tópico orders}}
-    K -->|consome| OC[order-consumer<br/>Spring Boot]
-    OC -.->|só registra em log| L[Log]
+    K -->|consome| IS[inventory-service<br/>Spring Boot, idempotente]
+    IS -->|SQL| PG2[(PostgreSQL inventory)]
+    IS -.->|falhou 3x| DLT{{orders.DLT}}
 ```
 
-O fluxo de hoje, em uma frase: um pedido entra por REST, é gravado no PostgreSQL e um evento é publicado no Kafka; o consumidor lê o evento e apenas o registra em log.
+O fluxo de hoje, em uma frase: um pedido entra por REST, é gravado no PostgreSQL e um evento é publicado no Kafka; o `inventory-service` reserva ou libera o estoque no seu próprio banco, ignora evento duplicado e manda para o DLT o que falha.
 
 ### Alvo
 
@@ -42,11 +43,12 @@ flowchart LR
 | Contêiner | Tecnologia | Papel |
 |---|---|---|
 | `order-service` | Java 17, Spring Boot 4, Web, Data JPA, Spring Kafka | API REST de pedidos (criar, atualizar, listar paginado, cancelar) e publicação de eventos |
-| `order-consumer` | Java 17, Spring Boot 4, Spring Kafka | Consome `orders` com um `@KafkaHandler` por tipo de evento; erro de desserialização é logado e pulado |
+| `inventory-service` | Java 17, Spring Boot 4, Data JPA, Spring Kafka | Consome `orders`: reserva no `created`, libera no `cancelled`; idempotente por `eventId` (`processed_events`); 3 tentativas e depois `orders.DLT` |
+| PostgreSQL inventory | 1 instância | Dados do `inventory-service` (`reservations`, `processed_events`) |
 | PostgreSQL | 1 instância | Dados do `order-service` |
-| Kafka | KRaft, 1 broker, tópico `orders` com 3 partições | Eventos `created`, `updated`, `cancelled`, chave = `customerId` |
+| Kafka | KRaft, 1 broker, tópicos `orders` e `orders.DLT` com 3 partições | Eventos `created`, `updated`, `cancelled`, chave = `customerId` |
 
-Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido).
+Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT).
 
 ### Alvo (proposta)
 
@@ -56,7 +58,7 @@ Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário 
 | `web-orders` | Angular | Remote: lista e cria pedidos |
 | `web-catalog` | Angular | Remote: produtos, consome a `sales-api` (.NET) |
 | `order-service` | Java, Spring Boot | Passa a gravar o pedido e o evento na mesma transação (outbox) |
-| `inventory-service` | Java, Spring Boot | Antigo `order-consumer`: consumidor idempotente que reserva estoque |
+| `inventory-service` | Java, Spring Boot | Já existe (fase 1); segue como está |
 | `billing-consumer` | .NET 8 | Consome `orders` e registra a venda na `sales-api` |
 | `sales-api` | .NET 8 (projeto existente) | API de vendas, já com DDD, CQRS, PostgreSQL, MongoDB e Redis |
 | Observabilidade | OpenTelemetry, Micrometer | Métricas, traces e logs com id de correlação |
@@ -107,7 +109,7 @@ sequenceDiagram
 
 Garantia: o evento é entregue pelo menos uma vez. Pode haver duplicata (se o relay cair depois do envio e antes de marcar), por isso o consumidor precisa ser idempotente.
 
-### 3.3 Alvo: consumidor idempotente
+### 3.3 Hoje: consumidor idempotente (fase 1, feita)
 
 ```mermaid
 sequenceDiagram
@@ -116,18 +118,18 @@ sequenceDiagram
     participant DB as PostgreSQL
     K->>I: OrderCreatedEvent (eventId=abc)
     I->>DB: BEGIN
-    I->>DB: INSERT processed_events(eventId) 
-    alt eventId já existe (violação de unicidade)
-        I->>DB: ROLLBACK
-        I-->>K: confirma sem efeito (duplicata)
-    else primeira vez
-        I->>DB: reserva estoque
+    I->>DB: INSERT processed_events(eventId) ON CONFLICT DO NOTHING
+    alt 0 linhas (eventId já existe)
+        I->>DB: COMMIT, sem efeito
+        I-->>K: confirma (duplicata ignorada)
+    else 1 linha (primeira vez)
+        I->>DB: grava a reserva
         I->>DB: COMMIT
         I-->>K: confirma
     end
 ```
 
-Falha repetida vai para um Dead Letter Topic depois de um número limitado de tentativas. A chave única em `processed_events` é o que garante que a mesma mensagem não produz efeito duas vezes.
+Falha no processamento tem 3 tentativas com 1s de intervalo e depois vai para o `orders.DLT`, com o motivo nos headers; erro de desserialização vai direto. A chave primária de `processed_events` garante que a mesma mensagem não produz efeito duas vezes. Detalhes e alternativas: [ADR 7](adr/0007-consumidor-idempotente-e-dlt.md).
 
 ### 3.4 Alvo: micro front-ends
 
@@ -163,7 +165,7 @@ Critérios: custo zero comprovado, limite de memória e tempo ocioso, e se roda 
 | Decisão | Opções | Situação |
 |---|---|---|
 | Versão do Angular | v22 (mais recente), v21 (LTS), v20 (LTS até 28/11/2026) | Ver seção 7 |
-| Papel do consumidor | estoque (recomendado), faturamento, notificação | Em aberto: confirmar com o dono do projeto |
+| Papel do consumidor | estoque, faturamento, notificação | Decidido: estoque (`inventory-service`), 19/11/2026 |
 | Faturamento em .NET | consumir `orders` e chamar a `sales-api` | Fase seguinte |
 | Kafka em produção gratuita | gerenciado (limites) ou subir junto no contêiner | A pesquisar |
 
@@ -181,7 +183,7 @@ Recomendação: começar na v22 (ou v21, se a biblioteca de federação escolhid
 
 ## 8. Plano de execução
 
-1. Fase 1: `inventory-service` idempotente, retry e Dead Letter Topic, com teste de integração.
+1. Fase 1: `inventory-service` idempotente, retry e Dead Letter Topic, com teste de integração. Feita em 19/11/2026.
 2. Fase 2: outbox no `order-service`.
 3. Fase 3: shell e remote Angular rodando com o `order-service`.
 4. Fase 4: observabilidade (métricas e traces).

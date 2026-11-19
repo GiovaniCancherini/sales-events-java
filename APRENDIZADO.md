@@ -57,3 +57,19 @@ O que quebrou, por que quebrou e o que ficou de cada correção. As decisões de
 - **Por quê:** o valor da anotação sobrescreve a propriedade. Quem mudasse só a propriedade não mudaria nada.
 - **O que mudou:** o `groupId` saiu da anotação e ficou só na propriedade.
 - **O que ficou:** configuração num lugar só.
+
+## 19/11/2026: a senha nova não valia depois de recriar o container
+
+- **O que quebrou:** depois de trocar a senha do inventory no `.env` e rodar `docker compose up --force-recreate`, o DBeaver falhava com `password authentication failed for user "inventory"`.
+- **Por quê:** a imagem do Postgres declara um volume para `/var/lib/postgresql/data`. Sem volume no compose, ele vira um volume anônimo, e o `--force-recreate` o reaproveita. O banco já existia, e o `POSTGRES_PASSWORD` só vale quando o banco é criado.
+- **Como foi diagnosticado:** havia dois processos na porta 5434 (`com.docker.backend` e `wslrelay`), mas os dois levavam ao mesmo container, então não era conflito de porta. O `docker inspect` mostrou o volume criado antes do container, e um `psql` pela rede do compose com a senha do `.env` reproduziu o erro.
+- **O que mudou:** os dois Postgres ganharam volume nomeado (`orders-data` e `inventory-data`), e o README diz que, depois de trocar a senha, é preciso rodar `docker compose down -v`.
+- **O que ficou:** recriar o container não recria o dado. E o erro de senha fala da senha que o banco tem, não da que está no `.env`.
+
+## 19/11/2026: o renome da variável apagou a senha do container
+
+- **O que quebrou:** com o volume renovado, o `postgres-inventory` saía com código 1: `Database is uninitialized and superuser password is not specified`.
+- **Por quê:** a variável do `.env` foi renomeada de `POSTGRES_PASSWORD` para `ORDER_POSTGRES_PASSWORD` com localizar e substituir, e a troca pegou também a chave dentro dos containers. A imagem só lê `POSTGRES_PASSWORD` e recebia vazio. O banco antigo continuava aceitando conexão porque já estava criado, o que escondeu o problema.
+- **O que mudou:** a chave voltou a ser `POSTGRES_PASSWORD`, com o valor vindo de `ORDER_POSTGRES_PASSWORD` e `INVENTORY_POSTGRES_PASSWORD`. O `.env.example` usa os nomes novos.
+- **O que ficou:** no compose, o lado esquerdo é contrato da imagem e o lado direito é escolha do projeto. Renome só no lado direito.
+
