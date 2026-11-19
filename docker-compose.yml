@@ -7,6 +7,9 @@ services:
       POSTGRES_PASSWORD: ${ORDER_POSTGRES_PASSWORD:?Defina ORDER_POSTGRES_PASSWORD no .env (veja .env.example)}
     ports:
       - "5433:5432"
+    # A senha só vale na criação do banco; trocou no .env, rode docker compose down -v
+    volumes:
+      - orders-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orders"]
       interval: 5s
@@ -21,6 +24,8 @@ services:
       POSTGRES_PASSWORD: ${INVENTORY_POSTGRES_PASSWORD:?Defina INVENTORY_POSTGRES_PASSWORD no .env (veja .env.example)}
     ports:
       - "5434:5432"
+    volumes:
+      - inventory-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory"]
       interval: 5s
@@ -84,3 +89,7 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+
+volumes:
+  orders-data:
+  inventory-data:
