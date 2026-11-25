@@ -4,11 +4,30 @@ services:
     environment:
       POSTGRES_DB: orders
       POSTGRES_USER: orders
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (veja .env.example)}
+      POSTGRES_PASSWORD: ${ORDER_POSTGRES_PASSWORD:?Defina ORDER_POSTGRES_PASSWORD no .env (veja .env.example)}
     ports:
       - "5433:5432"
+    # A senha só vale na criação do banco; trocou no .env, rode docker compose down -v
+    volumes:
+      - orders-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U orders"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-inventory:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: inventory
+      POSTGRES_USER: inventory
+      POSTGRES_PASSWORD: ${INVENTORY_POSTGRES_PASSWORD:?Defina INVENTORY_POSTGRES_PASSWORD no .env (veja .env.example)}
+    ports:
+      - "5434:5432"
+    volumes:
+      - inventory-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -32,7 +51,11 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       CLUSTER_ID: ciWo7IWazngRchmPES6q5A==
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null 2>&1",
+        ]
       interval: 5s
       timeout: 10s
       retries: 20
@@ -44,7 +67,7 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no .env (veja .env.example)}
+      DB_PASSWORD: ${ORDER_POSTGRES_PASSWORD:?Defina ORDER_POSTGRES_PASSWORD no .env (veja .env.example)}
       KAFKA_BOOTSTRAP: kafka:9092
     depends_on:
       postgres:
@@ -52,12 +75,21 @@ services:
       kafka:
         condition: service_healthy
 
-  order-consumer:
-    build: ./order-consumer
+  inventory-service:
+    build: ./inventory-service
     ports:
       - "8082:8082"
     environment:
+      DB_HOST: postgres-inventory
+      DB_PORT: 5432
+      DB_PASSWORD: ${INVENTORY_POSTGRES_PASSWORD:?Defina INVENTORY_POSTGRES_PASSWORD no .env (veja .env.example)}
       KAFKA_BOOTSTRAP: kafka:9092
     depends_on:
+      postgres-inventory:
+        condition: service_healthy
       kafka:
         condition: service_healthy
+
+volumes:
+  orders-data:
+  inventory-data:

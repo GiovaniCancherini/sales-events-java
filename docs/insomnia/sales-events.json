@@ -1,0 +1,113 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "insomnia.desktop.app:v2023.5.8",
+  "resources": [
+    {
+      "_id": "wrk_sales_events",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "sales-events-java",
+      "description": "order-service (8081) e inventory-service (8082). Roteiro em docs/roteiro-fase-1.md.",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_sales_events",
+      "_type": "environment",
+      "parentId": "wrk_sales_events",
+      "name": "Base Environment",
+      "data": {
+        "order_service": "http://localhost:8081",
+        "inventory_service": "http://localhost:8082",
+        "order_id": "cole-aqui-o-id-devolvido-na-criacao"
+      }
+    },
+    {
+      "_id": "req_01_health_order",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "01 Health order-service",
+      "method": "GET",
+      "url": "{{ _.order_service }}/actuator/health",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_02_health_inventory",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "02 Health inventory-service",
+      "method": "GET",
+      "url": "{{ _.inventory_service }}/actuator/health",
+      "metaSortKey": 2
+    },
+    {
+      "_id": "req_03_create",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "03 Criar pedido",
+      "method": "POST",
+      "url": "{{ _.order_service }}/orders",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmount\": 4500.00\n}"
+      },
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_04_get",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "04 Buscar pedido",
+      "method": "GET",
+      "url": "{{ _.order_service }}/orders/{{ _.order_id }}",
+      "metaSortKey": 4
+    },
+    {
+      "_id": "req_05_update",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "05 Alterar valor",
+      "method": "PUT",
+      "url": "{{ _.order_service }}/orders/{{ _.order_id }}",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"totalAmount\": 4800.00\n}"
+      },
+      "metaSortKey": 5
+    },
+    {
+      "_id": "req_06_cancel",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "06 Cancelar pedido",
+      "method": "POST",
+      "url": "{{ _.order_service }}/orders/{{ _.order_id }}/cancel",
+      "metaSortKey": 6
+    },
+    {
+      "_id": "req_07_list",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "07 Listar pedidos",
+      "method": "GET",
+      "url": "{{ _.order_service }}/orders?page=0&size=10",
+      "metaSortKey": 7
+    },
+    {
+      "_id": "req_08_invalid_amount",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "08 Valor com 3 casas (400)",
+      "method": "POST",
+      "url": "{{ _.order_service }}/orders",
+      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmount\": 10.555\n}"
+      },
+      "metaSortKey": 8
+    }
+  ]
+}

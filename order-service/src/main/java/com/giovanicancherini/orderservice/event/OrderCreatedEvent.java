@@ -10,6 +10,7 @@ import java.util.UUID;
  * deliberadamente, dado o tamanho do projeto.
  */
 public record OrderCreatedEvent(
+        UUID eventId,
         UUID orderId,
         String customerId,
         String product,

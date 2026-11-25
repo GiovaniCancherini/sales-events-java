@@ -1,9 +1,10 @@
-package com.giovanicancherini.orderconsumer.event;
+package com.giovanicancherini.inventoryservice.event;
 
 import java.time.Instant;
 import java.util.UUID;
 
 public record OrderCancelledEvent(
+        UUID eventId,
         UUID orderId,
         String customerId,
         Instant occurredAt

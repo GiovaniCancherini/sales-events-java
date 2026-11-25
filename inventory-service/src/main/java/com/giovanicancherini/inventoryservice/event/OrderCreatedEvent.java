@@ -1,4 +1,4 @@
-package com.giovanicancherini.orderconsumer.event;
+package com.giovanicancherini.inventoryservice.event;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -10,6 +10,7 @@ import java.util.UUID;
  * aqui, duplicado deliberadamente pelo escopo do projeto.
  */
 public record OrderCreatedEvent(
+        UUID eventId,
         UUID orderId,
         String customerId,
         String product,

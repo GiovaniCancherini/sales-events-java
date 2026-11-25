@@ -34,6 +34,7 @@ public class OrderService {
         order = orderRepository.saveAndFlush(order);
 
         eventPublisher.publishCreated(new OrderCreatedEvent(
+                UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
                 order.getProduct(),
@@ -53,6 +54,7 @@ public class OrderService {
         orderRepository.flush();
 
         eventPublisher.publishUpdated(new OrderUpdatedEvent(
+                UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
                 order.getTotalAmount(),
@@ -70,6 +72,7 @@ public class OrderService {
         orderRepository.flush();
 
         eventPublisher.publishCancelled(new OrderCancelledEvent(
+                UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
                 Instant.now()
