@@ -112,7 +112,7 @@ No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Tes
 
 ### Teste manual
 
-O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
+O [roteiro da fase 2](docs/roteiro-fase-2.md) mostra o outbox: o evento gravado junto com o pedido e esperando na tabela enquanto o Kafka está fora. O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d
@@ -158,8 +158,8 @@ O Kafka entrega pelo menos uma vez: se o serviço cair depois de gravar e antes 
 **Por que um Postgres para cada serviço?**
 Cada serviço é dono dos seus dados: o `inventory-service` não lê a tabela de pedidos, só os eventos. A senha de cada banco só vale quando ele é criado (o dado fica no volume `orders-data` ou `inventory-data`). Trocou a senha no `.env`? Rode `docker compose down -v` antes de subir de novo, o que apaga os dados locais.
 
-**Gap conhecido, não resolvido de propósito: dual write.**
-`OrderService.create()` salva no Postgres e publica no Kafka na mesma chamada, sem garantia atômica entre os dois. Se o commit no banco for bem-sucedido mas o Kafka falhar (ou vice-versa), o estado diverge. O flush antes de publicar diminui essa janela, porque erro de banco ou conflito de versão aparece antes de o evento sair, mas não a fecha. A correção correta é o **padrão Outbox** (grava o evento numa tabela na mesma transação do banco, e um processo separado publica no Kafka a partir dessa tabela). Não implementado aqui por escopo do projeto, mas é a primeira coisa que eu mudaria numa versão de produção.
+**Como o pedido e o evento ficam consistentes? (outbox)**
+Gravar no Postgres e publicar no Kafka na mesma chamada é dual write: se um dos dois falhar, o estado diverge, e não existe transação atômica entre os dois sistemas. Por isso o `order-service` não publica direto: grava o evento na tabela `outbox_events`, na mesma transação do pedido, e o `OutboxRelay` publica a cada 500ms o que está pendente (`SELECT ... FOR UPDATE SKIP LOCKED`, em ordem de criação), marcando cada linha só depois do ack do broker. Se o Kafka estiver fora, os eventos esperam na tabela; se o relay cair depois de publicar e antes de marcar, o evento sai de novo, e o consumidor idempotente descarta a duplicata pelo `eventId`, que é o próprio id da linha. Ver ADR 8.
 
 **Docker Compose em vez de Kubernetes de verdade.**
 Para o tamanho deste projeto, Compose já resolve. Um manifest básico de Kubernetes (Deployment + Service) pode ser adicionado depois. O valor dele aparece em self-healing, scaling horizontal e config como código, nenhum dos quais este projeto precisa de fato pra funcionar.
@@ -173,6 +173,6 @@ sales-events-java/
 ├── docker-compose.debug.yml   # override opcional: debug remoto do order-service (porta 5005)
 ├── docker-compose.tools.yml   # override opcional: Kafka UI (porta 8090)
 ├── docs/adr/            # registros de decisão de arquitetura (ADRs)
-├── order-service/       # API REST + produtor Kafka + Postgres
+├── order-service/       # API REST + Postgres + outbox (relay publica no Kafka)
 └── inventory-service/   # consumidor Kafka idempotente + Postgres próprio
 ```

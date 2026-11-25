@@ -1,7 +1,7 @@
 # 3. Concorrência otimista na alteração do pedido
 
 - **Data:** 19/10/2026
-- **Status:** aceita
+- **Status:** aceita; o flush antes de publicar foi substituído pelo outbox ([ADR 8](0008-outbox-no-order-service.md)). O `@Version` continua.
 
 ## Contexto
 

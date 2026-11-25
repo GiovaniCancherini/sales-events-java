@@ -10,13 +10,13 @@ Documento de trabalho da evolução do projeto: do par `order-service` e `invent
 flowchart LR
     U[Cliente HTTP<br/>curl ou Postman] -->|REST| OS[order-service<br/>Spring Boot]
     OS -->|SQL| PG[(PostgreSQL)]
-    OS -->|evento| K{{Kafka<br/>tópico orders}}
+    OS -->|outbox, relay| K{{Kafka<br/>tópico orders}}
     K -->|consome| IS[inventory-service<br/>Spring Boot, idempotente]
     IS -->|SQL| PG2[(PostgreSQL inventory)]
     IS -.->|falhou 3x| DLT{{orders.DLT}}
 ```
 
-O fluxo de hoje, em uma frase: um pedido entra por REST, é gravado no PostgreSQL e um evento é publicado no Kafka; o `inventory-service` reserva ou libera o estoque no seu próprio banco, ignora evento duplicado e manda para o DLT o que falha.
+O fluxo de hoje, em uma frase: um pedido entra por REST e é gravado no PostgreSQL junto com o seu evento (outbox), que um relay publica no Kafka; o `inventory-service` reserva ou libera o estoque no seu próprio banco, ignora evento duplicado e manda para o DLT o que falha.
 
 ### Alvo
 
@@ -44,13 +44,13 @@ flowchart LR
 
 | Contêiner | Tecnologia | Papel |
 |---|---|---|
-| `order-service` | Java 17, Spring Boot 4, Web, Data JPA, Spring Kafka | API REST de pedidos (criar, atualizar, listar paginado, cancelar) e publicação de eventos |
+| `order-service` | Java 17, Spring Boot 4, Web, Data JPA, Spring Kafka | API REST de pedidos (criar, atualizar, listar paginado, cancelar); eventos gravados no outbox na mesma transação e publicados pelo `OutboxRelay` |
 | `inventory-service` | Java 17, Spring Boot 4, Data JPA, Spring Kafka | Consome `orders`: reserva no `created`, libera no `cancelled`; idempotente por `eventId` (`processed_events`); 3 tentativas e depois `orders.DLT` |
 | PostgreSQL inventory | 1 instância | Dados do `inventory-service` (`reservations`, `processed_events`) |
-| PostgreSQL | 1 instância | Dados do `order-service` |
+| PostgreSQL | 1 instância | Dados do `order-service` (`orders`, `outbox_events`) |
 | Kafka | KRaft, 1 broker, tópicos `orders` e `orders.DLT` com 3 partições | Eventos `created`, `updated`, `cancelled`, chave = `customerId` |
 
-Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT).
+Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox).
 
 ### Alvo (proposta)
 
@@ -60,7 +60,7 @@ Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário 
 | `web-orders` | Angular | Remote: lista e cria pedidos |
 | `web-catalog` | Angular | Remote: produtos, consome a `sales-api` (.NET) |
 | `api-gateway` | Spring Cloud Gateway | Entrada única do front: roteia para `order-service` e `sales-api`, concentra CORS e cria o id de correlação |
-| `order-service` | Java, Spring Boot | Passa a gravar o pedido e o evento na mesma transação (outbox) |
+| `order-service` | Java, Spring Boot | Já com outbox (fase 2); segue como está |
 | `inventory-service` | Java, Spring Boot | Já existe (fase 1); segue como está |
 | `billing-consumer` | .NET 8 | Consome `orders` e registra a venda na `sales-api` |
 | `sales-api` | .NET 8 (projeto existente) | API de vendas, já com DDD, CQRS, PostgreSQL, MongoDB e Redis |
@@ -68,7 +68,7 @@ Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário 
 
 ## 3. Visão micro (dentro de cada peça)
 
-### 3.1 Hoje: criação de um pedido
+### 3.1 Antes do outbox (até a fase 1): criação de um pedido
 
 ```mermaid
 sequenceDiagram
@@ -85,12 +85,12 @@ sequenceDiagram
     S->>P: publica OrderCreatedEvent
     P->>K: send(key=customerId)
     K-->>L: entrega o evento
-    L->>L: registra em log
+    L->>L: reserva estoque
 ```
 
-Lacuna conhecida: gravar no banco e publicar no Kafka são dois passos separados. Se o processo cair entre eles, o pedido existe e o evento se perde (ou o contrário). É o problema que o outbox resolve.
+A lacuna que motivou a fase 2: gravar no banco e publicar no Kafka eram dois passos separados. Se o processo caísse entre eles, o pedido existia e o evento se perdia (ou o contrário).
 
-### 3.2 Alvo: outbox no `order-service`
+### 3.2 Hoje: outbox no `order-service` (fase 2, feita)
 
 ```mermaid
 sequenceDiagram
@@ -100,17 +100,17 @@ sequenceDiagram
     participant K as Kafka
     S->>DB: BEGIN
     S->>DB: INSERT order
-    S->>DB: INSERT outbox_event (pendente)
+    S->>DB: INSERT outbox_events (sent_at nulo)
     S->>DB: COMMIT
-    loop periodicamente
-        R->>DB: lê outbox_event pendente
-        R->>K: send(key=customerId)
+    loop a cada 500ms, numa transação
+        R->>DB: SELECT pendentes FOR UPDATE SKIP LOCKED
+        R->>K: send(key=customerId, header=tipo)
         K-->>R: ack
-        R->>DB: marca como enviado
+        R->>DB: sent_at = agora
     end
 ```
 
-Garantia: o evento é entregue pelo menos uma vez. Pode haver duplicata (se o relay cair depois do envio e antes de marcar), por isso o consumidor precisa ser idempotente.
+Garantia: o evento é entregue pelo menos uma vez. Pode haver duplicata (se o relay cair depois do envio e antes de marcar), e o consumidor idempotente a descarta pelo `eventId`, que é o id da linha do outbox. Detalhes e alternativas: [ADR 8](adr/0008-outbox-no-order-service.md).
 
 ### 3.3 Hoje: consumidor idempotente (fase 1, feita)
 
@@ -190,7 +190,7 @@ Recomendação: começar na v22 (ou v21, se a biblioteca de federação escolhid
 ## 8. Plano de execução
 
 1. Fase 1: `inventory-service` idempotente, retry e Dead Letter Topic, com teste de integração. Feita em 19/11/2026.
-2. Fase 2: outbox no `order-service`.
+2. Fase 2: outbox no `order-service`. Feita em 25/11/2026.
 3. Fase 3: `api-gateway` (Spring Cloud Gateway), shell e remote Angular rodando com o `order-service` através dele.
 4. Fase 4: observabilidade (métricas e traces).
 5. Fase 5: `billing-consumer` .NET e remote catalog.
