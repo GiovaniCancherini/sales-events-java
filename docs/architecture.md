@@ -25,8 +25,10 @@ flowchart LR
     U[Usuário no navegador] --> SH[Angular shell<br/>host]
     SH --> MO[MFE orders]
     SH --> MC[MFE catalog]
-    MO -->|REST| OS[order-service<br/>Java, Spring Boot]
-    MC -->|REST| SA[sales-api<br/>.NET 8]
+    MO -->|REST| GW[api-gateway<br/>Spring Cloud Gateway]
+    MC -->|REST| GW
+    GW --> OS[order-service<br/>Java, Spring Boot]
+    GW --> SA[sales-api<br/>.NET 8]
     OS --> PG[(PostgreSQL)]
     OS -->|outbox, evento| K{{Kafka}}
     K --> IS[inventory-service<br/>Java, consumidor idempotente]
@@ -57,6 +59,7 @@ Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário 
 | `web-shell` | Angular | Host dos micro front-ends: layout, roteamento, carregamento dos remotes |
 | `web-orders` | Angular | Remote: lista e cria pedidos |
 | `web-catalog` | Angular | Remote: produtos, consome a `sales-api` (.NET) |
+| `api-gateway` | Spring Cloud Gateway | Entrada única do front: roteia para `order-service` e `sales-api`, concentra CORS e cria o id de correlação |
 | `order-service` | Java, Spring Boot | Passa a gravar o pedido e o evento na mesma transação (outbox) |
 | `inventory-service` | Java, Spring Boot | Já existe (fase 1); segue como está |
 | `billing-consumer` | .NET 8 | Consome `orders` e registra a venda na `sales-api` |
@@ -142,8 +145,10 @@ flowchart TB
         SH -.->|bibliotecas compartilhadas<br/>Angular, RxJS| RO
         SH -.-> RC
     end
-    RO -->|HTTPS, CORS| OS[order-service]
-    RC -->|HTTPS, CORS| SA[sales-api .NET]
+    RO -->|HTTPS| GW[api-gateway<br/>CORS num lugar só]
+    RC -->|HTTPS| GW
+    GW --> OS[order-service]
+    GW --> SA[sales-api .NET]
 ```
 
 Pontos de atenção: o que é compartilhado e versionado (Angular, RxJS), como os remotes são carregados em runtime, deploy independente de cada remote, e os riscos (versões divergentes, estilo global, comunicação entre remotes, duplicação de código).
@@ -167,6 +172,7 @@ Critérios: custo zero comprovado, limite de memória e tempo ocioso, e se roda 
 | Versão do Angular | v22 (mais recente), v21 (LTS), v20 (LTS até 28/11/2026) | Ver seção 7 |
 | Papel do consumidor | estoque, faturamento, notificação | Decidido: estoque (`inventory-service`), 19/11/2026 |
 | Faturamento em .NET | consumir `orders` e chamar a `sales-api` | Fase seguinte |
+| Spring Cloud no projeto | Gateway; Gateway com Eureka e Config Server; Spring Cloud Stream | Decidido: só o Gateway, na fase 3 (25/11/2026). No Compose, o DNS da rede já resolve o endereço dos serviços, então Eureka seria peça sem função; Config Server, idem, com um `application.properties` por serviço |
 | Kafka em produção gratuita | gerenciado (limites) ou subir junto no contêiner | A pesquisar |
 
 ## 7. Angular: qual versão
@@ -185,7 +191,7 @@ Recomendação: começar na v22 (ou v21, se a biblioteca de federação escolhid
 
 1. Fase 1: `inventory-service` idempotente, retry e Dead Letter Topic, com teste de integração. Feita em 19/11/2026.
 2. Fase 2: outbox no `order-service`.
-3. Fase 3: shell e remote Angular rodando com o `order-service`.
+3. Fase 3: `api-gateway` (Spring Cloud Gateway), shell e remote Angular rodando com o `order-service` através dele.
 4. Fase 4: observabilidade (métricas e traces).
 5. Fase 5: `billing-consumer` .NET e remote catalog.
 6. Fase 6: deploy em plano gratuito.
