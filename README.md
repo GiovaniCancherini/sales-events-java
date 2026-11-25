@@ -5,8 +5,13 @@ Sistema de pedidos com dois serviços independentes, comunicando por eventos via
 ## Arquitetura
 
 ```
-                POST /orders
+          POST /api/orders (front)
                      │
+                     ▼
+            ┌─────────────────┐
+            │   api-gateway    │  rotas, CORS, X-Correlation-Id
+            └────────┬────────┘
+                     │ POST /orders
                      ▼
             ┌─────────────────┐        publica evento         ┌──────────────────┐
             │  order-service    │ ──────────────────────────► │      Kafka        │
@@ -24,11 +29,11 @@ Sistema de pedidos com dois serviços independentes, comunicando por eventos via
                                                            Postgres próprio   orders.DLT
 ```
 
-Dois serviços deployáveis separadamente, cada um com seu próprio `pom.xml` e `Dockerfile`. Não é um projeto Maven multi-módulo, de propósito: microsserviço de verdade não compartilha build.
+Três serviços deployáveis separadamente, cada um com seu próprio `pom.xml` e `Dockerfile`. Não é um projeto Maven multi-módulo, de propósito: microsserviço de verdade não compartilha build.
 
 ## Stack
 
-Java 17, Spring Boot 4, Spring Web, Spring Data JPA, Spring Kafka, PostgreSQL, Docker Compose, Testcontainers. Kafka roda em modo KRaft (sem Zookeeper).
+Java 17, Spring Boot 4, Spring Cloud Gateway, Spring Web, Spring Data JPA, Spring Kafka, PostgreSQL, Docker Compose, Testcontainers. Kafka roda em modo KRaft (sem Zookeeper).
 
 ## Como rodar
 
@@ -46,6 +51,7 @@ docker compose up --build
 
 Isso sobe dois Postgres (um por serviço), Kafka (KRaft, 1 broker) e os dois serviços.
 
+- `api-gateway`: http://localhost:8080 (entrada do front: `/api/orders/**` vai para o `order-service`)
 - `order-service`: http://localhost:8081
 - `inventory-service`: http://localhost:8082 (só expõe health check; o trabalho dele aparece no log e no banco `inventory`, em `localhost:5434`)
 
@@ -106,13 +112,14 @@ Sobe o mesmo ambiente, com o `order-service` aceitando um debugger remoto (JDWP)
 ```bash
 cd order-service && ./mvnw test
 cd ../inventory-service && ./mvnw test
+cd ../api-gateway && ./mvnw test
 ```
 
-No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka em cada serviço), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no `inventory-service`, testes pelo Kafka de verdade: o tipo pelo header e o valor com as 2 casas; um `created` duplicado que chega depois do `cancelled` não volta a reservar; uma mensagem que não desserializa cai no `orders.DLT`; e uma falha de processamento tem 3 tentativas antes de ir para o DLT, com o header de tipo mantido.
+No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka em cada serviço), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no `inventory-service`, testes pelo Kafka de verdade: o tipo pelo header e o valor com as 2 casas; um `created` duplicado que chega depois do `cancelled` não volta a reservar; uma mensagem que não desserializa cai no `orders.DLT`; e uma falha de processamento tem 3 tentativas antes de ir para o DLT, com o header de tipo mantido. No `api-gateway`, os testes usam um `HttpServer` do JDK no lugar do `order-service` (sem Docker) e conferem a rota sem o `/api`, o id de correlação gerado, aceito ou trocado quando inválido, e o CORS liberado para o shell e recusado para outra origem.
 
 ### Teste manual
 
-O [roteiro da fase 2](docs/roteiro-fase-2.md) mostra o outbox: o evento gravado junto com o pedido e esperando na tabela enquanto o Kafka está fora. O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
+O [roteiro da fase 3](docs/roteiro-fase-3.md) mostra o gateway: rota, id de correlação e CORS. O [roteiro da fase 2](docs/roteiro-fase-2.md) mostra o outbox: o evento gravado junto com o pedido e esperando na tabela enquanto o Kafka está fora. O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d
@@ -173,6 +180,7 @@ sales-events-java/
 ├── docker-compose.debug.yml   # override opcional: debug remoto do order-service (porta 5005)
 ├── docker-compose.tools.yml   # override opcional: Kafka UI (porta 8090)
 ├── docs/adr/            # registros de decisão de arquitetura (ADRs)
+├── api-gateway/         # Spring Cloud Gateway: rotas, CORS e id de correlação
 ├── order-service/       # API REST + Postgres + outbox (relay publica no Kafka)
 └── inventory-service/   # consumidor Kafka idempotente + Postgres próprio
 ```

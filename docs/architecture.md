@@ -44,13 +44,14 @@ flowchart LR
 
 | Contêiner | Tecnologia | Papel |
 |---|---|---|
+| `api-gateway` | Java 17, Spring Boot 4, Spring Cloud Gateway (WebFlux) | Entrada única do front: `/api/orders/**` para o `order-service`, CORS e `X-Correlation-Id` (ADR 9) |
 | `order-service` | Java 17, Spring Boot 4, Web, Data JPA, Spring Kafka | API REST de pedidos (criar, atualizar, listar paginado, cancelar); eventos gravados no outbox na mesma transação e publicados pelo `OutboxRelay` |
 | `inventory-service` | Java 17, Spring Boot 4, Data JPA, Spring Kafka | Consome `orders`: reserva no `created`, libera no `cancelled`; idempotente por `eventId` (`processed_events`); 3 tentativas e depois `orders.DLT` |
 | PostgreSQL inventory | 1 instância | Dados do `inventory-service` (`reservations`, `processed_events`) |
 | PostgreSQL | 1 instância | Dados do `order-service` (`orders`, `outbox_events`) |
 | Kafka | KRaft, 1 broker, tópicos `orders` e `orders.DLT` com 3 partições | Eventos `created`, `updated`, `cancelled`, chave = `customerId` |
 
-Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox).
+Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox, API gateway).
 
 ### Alvo (proposta)
 
@@ -59,7 +60,7 @@ Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário 
 | `web-shell` | Angular | Host dos micro front-ends: layout, roteamento, carregamento dos remotes |
 | `web-orders` | Angular | Remote: lista e cria pedidos |
 | `web-catalog` | Angular | Remote: produtos, consome a `sales-api` (.NET) |
-| `api-gateway` | Spring Cloud Gateway | Entrada única do front: roteia para `order-service` e `sales-api`, concentra CORS e cria o id de correlação |
+| `api-gateway` | Spring Cloud Gateway | Já existe (fase 3); ganha a rota da `sales-api` na fase 5 |
 | `order-service` | Java, Spring Boot | Já com outbox (fase 2); segue como está |
 | `inventory-service` | Java, Spring Boot | Já existe (fase 1); segue como está |
 | `billing-consumer` | .NET 8 | Consome `orders` e registra a venda na `sales-api` |
