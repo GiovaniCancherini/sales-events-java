@@ -17,6 +17,7 @@
       "parentId": "wrk_sales_events",
       "name": "Base Environment",
       "data": {
+        "api_gateway": "http://localhost:8080",
         "order_service": "http://localhost:8081",
         "inventory_service": "http://localhost:8082",
         "order_id": "cole-aqui-o-id-devolvido-na-criacao"
@@ -47,7 +48,12 @@
       "name": "03 Criar pedido",
       "method": "POST",
       "url": "{{ _.order_service }}/orders",
-      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmount\": 4500.00\n}"
@@ -70,7 +76,12 @@
       "name": "05 Alterar valor",
       "method": "PUT",
       "url": "{{ _.order_service }}/orders/{{ _.order_id }}",
-      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"totalAmount\": 4800.00\n}"
@@ -102,12 +113,51 @@
       "name": "08 Valor com 3 casas (400)",
       "method": "POST",
       "url": "{{ _.order_service }}/orders",
-      "headers": [{ "name": "Content-Type", "value": "application/json" }],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
       "body": {
         "mimeType": "application/json",
         "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmount\": 10.555\n}"
       },
       "metaSortKey": 8
+    },
+    {
+      "_id": "req_09_list_via_gateway",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "09 Listar pedidos pelo gateway",
+      "method": "GET",
+      "url": "{{ _.api_gateway }}/api/orders?page=0&size=10",
+      "headers": [
+        {
+          "name": "X-Correlation-Id",
+          "value": "teste-insomnia-1"
+        }
+      ],
+      "metaSortKey": 9
+    },
+    {
+      "_id": "req_10_create_via_gateway",
+      "_type": "request",
+      "parentId": "wrk_sales_events",
+      "name": "10 Criar pedido pelo gateway",
+      "method": "POST",
+      "url": "{{ _.api_gateway }}/api/orders",
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"customerId\": \"cliente-gateway\",\n  \"product\": \"Monitor\",\n  \"totalAmount\": 1200.00\n}"
+      },
+      "metaSortKey": 10
     }
   ]
 }
