@@ -195,3 +195,14 @@ Recomendação: começar na v22 (ou v21, se a biblioteca de federação escolhid
 4. Fase 4: observabilidade (métricas e traces).
 5. Fase 5: `billing-consumer` .NET e remote catalog.
 6. Fase 6: deploy em plano gratuito.
+
+## 9. Critérios de pronto e fora do escopo
+
+Pronto quando:
+
+- [ ] `docker compose up` sobe tudo (Kafka, bancos, serviços, gateway) e o front roda.
+- [x] Teste de integração da idempotência passando.
+- [ ] README com diagrama, como rodar, decisões e aprendizados.
+- [ ] Repositório público sem segredo no código (gitleaks no pre-commit) e revisado contra a lista de vulnerabilidades.
+
+Fora do escopo por enquanto: Kubernetes, autenticação completa e UI caprichada.
