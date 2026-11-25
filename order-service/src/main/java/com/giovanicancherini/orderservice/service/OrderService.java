@@ -5,7 +5,7 @@ import com.giovanicancherini.orderservice.api.OrderUpdateRequest;
 import com.giovanicancherini.orderservice.domain.Order;
 import com.giovanicancherini.orderservice.event.OrderCancelledEvent;
 import com.giovanicancherini.orderservice.event.OrderCreatedEvent;
-import com.giovanicancherini.orderservice.event.OrderEventPublisher;
+import com.giovanicancherini.orderservice.event.OrderEventOutbox;
 import com.giovanicancherini.orderservice.event.OrderUpdatedEvent;
 import com.giovanicancherini.orderservice.repository.OrderRepository;
 import org.springframework.data.domain.Page;
@@ -16,24 +16,25 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
+// O pedido e o evento no outbox são gravados na mesma transação: se o commit falhar
+// (banco fora, conflito de versão), nenhum dos dois fica, e nenhum evento sai.
 @Service
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final OrderEventPublisher eventPublisher;
+    private final OrderEventOutbox eventOutbox;
 
-    public OrderService(OrderRepository orderRepository, OrderEventPublisher eventPublisher) {
+    public OrderService(OrderRepository orderRepository, OrderEventOutbox eventOutbox) {
         this.orderRepository = orderRepository;
-        this.eventPublisher = eventPublisher;
+        this.eventOutbox = eventOutbox;
     }
 
     @Transactional
     public Order create(OrderCreateRequest request) {
-        Order order = new Order(request.customerId(), request.product(), request.totalAmount());
-        // Flush antes de publicar: se o banco recusar a escrita, o evento não sai.
-        order = orderRepository.saveAndFlush(order);
+        Order order = orderRepository.save(
+                new Order(request.customerId(), request.product(), request.totalAmount()));
 
-        eventPublisher.publishCreated(new OrderCreatedEvent(
+        eventOutbox.addCreated(new OrderCreatedEvent(
                 UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
@@ -50,10 +51,8 @@ public class OrderService {
         Order order = getById(id);
 
         order.updateTotalAmount(request.totalAmount());
-        // Se outra requisição alterou o pedido no meio, o @Version falha aqui, antes do evento.
-        orderRepository.flush();
 
-        eventPublisher.publishUpdated(new OrderUpdatedEvent(
+        eventOutbox.addUpdated(new OrderUpdatedEvent(
                 UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
@@ -69,9 +68,8 @@ public class OrderService {
         Order order = getById(id);
 
         order.cancel();
-        orderRepository.flush();
 
-        eventPublisher.publishCancelled(new OrderCancelledEvent(
+        eventOutbox.addCancelled(new OrderCancelledEvent(
                 UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
