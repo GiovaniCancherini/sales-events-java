@@ -108,7 +108,17 @@ cd order-service && ./mvnw test
 cd ../inventory-service && ./mvnw test
 ```
 
-No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka em cada serviço), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no `inventory-service`, testes pelo Kafka de verdade: o tipo pelo header e o valor com as 2 casas; um `created` duplicado que chega depois do `cancelled` não volta a reservar; e uma mensagem que não desserializa cai no `orders.DLT`.
+No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka em cada serviço), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no `inventory-service`, testes pelo Kafka de verdade: o tipo pelo header e o valor com as 2 casas; um `created` duplicado que chega depois do `cancelled` não volta a reservar; uma mensagem que não desserializa cai no `orders.DLT`; e uma falha de processamento tem 3 tentativas antes de ir para o DLT, com o header de tipo mantido.
+
+### Teste manual
+
+O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d
+```
+
+O Kafka UI fica em http://localhost:8090: mostra mensagens e headers dos tópicos e permite produzir mensagens à mão.
 
 ## Verificação de segredos
 
@@ -161,6 +171,7 @@ sales-events-java/
 ├── APRENDIZADO.md       # o que quebrou, por quê e o que ficou de cada correção
 ├── docker-compose.yml
 ├── docker-compose.debug.yml   # override opcional: debug remoto do order-service (porta 5005)
+├── docker-compose.tools.yml   # override opcional: Kafka UI (porta 8090)
 ├── docs/adr/            # registros de decisão de arquitetura (ADRs)
 ├── order-service/       # API REST + produtor Kafka + Postgres
 └── inventory-service/   # consumidor Kafka idempotente + Postgres próprio
