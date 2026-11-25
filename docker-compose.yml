@@ -90,6 +90,15 @@ services:
       kafka:
         condition: service_healthy
 
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      ORDER_SERVICE_URL: http://order-service:8081
+    depends_on:
+      - order-service
+
 volumes:
   orders-data:
   inventory-data:
