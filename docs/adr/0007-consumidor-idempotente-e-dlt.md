@@ -11,7 +11,7 @@ Sem proteção, um `created` reentregue depois do `cancelled` regrava a reserva 
 
 ## Decisão
 
-- Cada evento ganha um `eventId` (UUID) no payload, gerado no `order-service`. Na fase 2, ele vira o id da linha do outbox.
+- Cada evento ganha um `eventId` (UUID) no payload, gerado no `order-service`. Na fase 2, virou o id da linha do outbox (ADR 8).
 - O `inventory-service` grava o `eventId` em `processed_events` com `INSERT ... ON CONFLICT (event_id) DO NOTHING`, na mesma transação do efeito. Se nenhuma linha for inserida, o evento é duplicado e é ignorado sem erro. Quem decide é a chave primária, então duas entregas simultâneas não passam as duas.
 - Falha no processamento: 3 tentativas com 1s de intervalo (`DefaultErrorHandler` com `FixedBackOff`), depois `orders.DLT` com o motivo nos headers. Erro de desserialização não é retentável e vai direto. A partição segue andando.
 - O `orders.DLT` é do `inventory-service` (ADR 1), com as mesmas 3 partições do `orders`, porque a mensagem vai para a mesma partição de onde veio. Mensagem que não desserializou vai em bytes crus; evento vai em JSON, com o header de tipo original, para poder ser reprocessado.
