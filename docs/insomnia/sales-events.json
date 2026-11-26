@@ -56,7 +56,7 @@
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmount\": 4500.00\n}"
+        "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmountInCents\": 450000\n}"
       },
       "metaSortKey": 3
     },
@@ -84,7 +84,7 @@
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"totalAmount\": 4800.00\n}"
+        "text": "{\n  \"totalAmountInCents\": 480000\n}"
       },
       "metaSortKey": 5
     },
@@ -110,7 +110,7 @@
       "_id": "req_08_invalid_amount",
       "_type": "request",
       "parentId": "wrk_sales_events",
-      "name": "08 Valor com 3 casas (400)",
+      "name": "08 Centavos fracionados (400)",
       "method": "POST",
       "url": "{{ _.order_service }}/orders",
       "headers": [
@@ -121,7 +121,7 @@
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmount\": 10.555\n}"
+        "text": "{\n  \"customerId\": \"cliente-1\",\n  \"product\": \"Notebook\",\n  \"totalAmountInCents\": 1055.5\n}"
       },
       "metaSortKey": 8
     },
@@ -155,7 +155,7 @@
       ],
       "body": {
         "mimeType": "application/json",
-        "text": "{\n  \"customerId\": \"cliente-gateway\",\n  \"product\": \"Monitor\",\n  \"totalAmount\": 1200.00\n}"
+        "text": "{\n  \"customerId\": \"cliente-gateway\",\n  \"product\": \"Monitor\",\n  \"totalAmountInCents\": 120000\n}"
       },
       "metaSortKey": 10
     }
