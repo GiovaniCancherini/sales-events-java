@@ -3,7 +3,7 @@ export interface Order {
   id: string;
   customerId: string;
   product: string;
-  totalAmount: number;
+  totalAmountInCents: number;
   status: 'CREATED' | 'CANCELLED';
   createdAt: string;
   updatedAt: string;
@@ -17,5 +17,5 @@ export interface OrderPage {
 export interface OrderCreateRequest {
   customerId: string;
   product: string;
-  totalAmount: number;
+  totalAmountInCents: number;
 }

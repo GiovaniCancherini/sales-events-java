@@ -1,9 +1,9 @@
 package com.giovanicancherini.orderservice.api;
 
+import com.giovanicancherini.orderservice.Cents;
 import com.giovanicancherini.orderservice.domain.Order;
 import com.giovanicancherini.orderservice.domain.OrderStatus;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,7 +11,7 @@ public record OrderResponse(
         UUID id,
         String customerId,
         String product,
-        BigDecimal totalAmount,
+        long totalAmountInCents,
         OrderStatus status,
         Instant createdAt,
         Instant updatedAt
@@ -21,7 +21,7 @@ public record OrderResponse(
                 order.getId(),
                 order.getCustomerId(),
                 order.getProduct(),
-                order.getTotalAmount(),
+                Cents.fromAmount(order.getTotalAmount()),
                 order.getStatus(),
                 order.getCreatedAt(),
                 order.getUpdatedAt()

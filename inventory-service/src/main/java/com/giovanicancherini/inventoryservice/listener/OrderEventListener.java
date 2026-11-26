@@ -26,16 +26,16 @@ public class OrderEventListener {
 
     @KafkaHandler
     public void onCreated(OrderCreatedEvent event) {
-        log.info("Pedido criado: cliente={} produto={} valor={}",
-                event.customerId(), event.product(), event.totalAmount());
+        log.info("Pedido criado: cliente={} produto={} valorEmCentavos={}",
+                event.customerId(), event.product(), event.totalAmountInCents());
         reservationService.reserve(event);
     }
 
     // Mudança de valor não mexe em estoque.
     @KafkaHandler
     public void onUpdated(OrderUpdatedEvent event) {
-        log.info("Pedido atualizado: cliente={} novoValor={}",
-                event.customerId(), event.totalAmount());
+        log.info("Pedido atualizado: cliente={} novoValorEmCentavos={}",
+                event.customerId(), event.totalAmountInCents());
     }
 
     @KafkaHandler

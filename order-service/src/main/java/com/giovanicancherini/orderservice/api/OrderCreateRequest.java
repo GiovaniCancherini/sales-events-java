@@ -1,15 +1,15 @@
 package com.giovanicancherini.orderservice.api;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
+import com.giovanicancherini.orderservice.Cents;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 
-import java.math.BigDecimal;
 
 public record OrderCreateRequest(
         @NotBlank String customerId,
         @NotBlank String product,
-        @NotNull @DecimalMin(value = "0.01") @Digits(integer = 16, fraction = 2) BigDecimal totalAmount
+        @NotNull @Positive @Max(Cents.MAXIMUM) Long totalAmountInCents
 ) {
 }

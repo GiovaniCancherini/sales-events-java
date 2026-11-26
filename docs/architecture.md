@@ -53,7 +53,7 @@ flowchart LR
 | PostgreSQL | 1 instância | Dados do `order-service` (`orders`, `outbox_events`) |
 | Kafka | KRaft, 1 broker, tópicos `orders` e `orders.DLT` com 3 partições | Eventos `created`, `updated`, `cancelled`, chave = `customerId` |
 
-Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox, API gateway, micro front-ends).
+Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox, API gateway, micro front-ends, contrato monetário em centavos).
 
 ### Alvo (proposta)
 
@@ -172,6 +172,7 @@ Critérios: custo zero comprovado, limite de memória e tempo ocioso, e se roda 
 | Decisão | Opções | Situação |
 |---|---|---|
 | Versão do Angular | v22 (mais recente), v21 (LTS), v20 (LTS até 28/11/2026) | Decidido: 22.2.6 fixado, a mais nova suportada pela Native Federation 22.2.5 (ADR 10), 25/11/2026 |
+| Dinheiro no contrato | decimal no JSON, decimal como string, centavos inteiros; centavos em todo lugar | Decidido: contrato (API e eventos) em centavos, domínio e banco em decimal exato (ADR 11), 25/11/2026 |
 | Papel do consumidor | estoque, faturamento, notificação | Decidido: estoque (`inventory-service`), 19/11/2026 |
 | Faturamento em .NET | consumir `orders` e chamar a `sales-api` | Fase seguinte |
 | Spring Cloud no projeto | Gateway; Gateway com Eureka e Config Server; Spring Cloud Stream | Decidido: só o Gateway, na fase 3 (25/11/2026). No Compose, o DNS da rede já resolve o endereço dos serviços, então Eureka seria peça sem função; Config Server, idem, com um `application.properties` por serviço |

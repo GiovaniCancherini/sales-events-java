@@ -67,7 +67,7 @@ curl http://localhost:8081/actuator/health
 Deve responder `{"status":"UP"}`. Os comandos abaixo estão em uma linha só, com aspas duplas escapadas, e funcionam tanto no CMD do Windows quanto no Git Bash/Linux/macOS:
 
 ```
-curl -X POST http://localhost:8081/orders -H "Content-Type: application/json" -d "{\"customerId\":\"cliente-1\",\"product\":\"Notebook\",\"totalAmount\":4500.00}"
+curl -X POST http://localhost:8081/orders -H "Content-Type: application/json" -d "{\"customerId\":\"cliente-1\",\"product\":\"Notebook\",\"totalAmountInCents\":450000}"
 ```
 
 Acompanhe o log do `inventory-service` (`docker compose logs -f inventory-service`): em segundos aparece `Estoque reservado`, e a tabela `reservations` ganha uma linha `RESERVED`. Cancelar o pedido muda a reserva para `RELEASED`.
@@ -75,7 +75,7 @@ Acompanhe o log do `inventory-service` (`docker compose logs -f inventory-servic
 Atualizar um pedido (use o `id` devolvido na criação):
 
 ```
-curl -X PUT http://localhost:8081/orders/{id} -H "Content-Type: application/json" -d "{\"totalAmount\":4800.00}"
+curl -X PUT http://localhost:8081/orders/{id} -H "Content-Type: application/json" -d "{\"totalAmountInCents\":480000}"
 ```
 
 Listar pedidos, paginado (padrão: 20 por página, mais recentes primeiro):

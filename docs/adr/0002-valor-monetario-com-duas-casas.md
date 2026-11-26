@@ -1,7 +1,7 @@
 # 2. Valor monetário com duas casas
 
 - **Data:** 19/10/2026
-- **Status:** aceita
+- **Status:** aceita; no contrato (API e eventos), o valor passou a trafegar em centavos inteiros ([ADR 11](0011-contrato-monetario-em-centavos.md)). Domínio e banco continuam com 2 casas.
 
 ## Contexto
 

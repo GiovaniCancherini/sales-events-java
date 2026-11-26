@@ -18,8 +18,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.support.mapping.AbstractJavaTypeMapper;
 import org.springframework.transaction.support.TransactionTemplate;
+import tools.jackson.databind.json.JsonMapper;
 
-import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -49,6 +49,9 @@ class OrderServiceApplicationTests {
 	@Autowired
 	ConsumerFactory<?, ?> consumerFactory;
 
+	@Autowired
+	JsonMapper jsonMapper;
+
 	@Value("${app.kafka.topic.orders}")
 	String topic;
 
@@ -60,7 +63,7 @@ class OrderServiceApplicationTests {
 	// a key do cliente e o token de tipo no header, e marca a linha como enviada.
 	@Test
 	void createdOrderIsPublishedThroughTheOutbox() throws Exception {
-		Order order = orderService.create(new OrderCreateRequest("cliente-outbox", "Notebook", new BigDecimal("4500.00")));
+		Order order = orderService.create(new OrderCreateRequest("cliente-outbox", "Notebook", 450000L));
 
 		OutboxEvent outboxEvent = outboxEventRepository.findAll().stream()
 				.filter(event -> event.getPayload().contains(order.getId().toString()))
@@ -72,7 +75,7 @@ class OrderServiceApplicationTests {
 		assertThat(record.key()).isEqualTo("cliente-outbox");
 		assertThat(new String(record.headers().lastHeader(AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME).value(),
 				StandardCharsets.UTF_8)).isEqualTo("created");
-		assertThat(String.valueOf(record.value())).contains("\"totalAmount\":4500.00");
+		assertThat(String.valueOf(record.value())).contains("\"totalAmountInCents\":450000");
 	}
 
 	// A falha vem depois de o evento ir para o outbox (como um commit recusado pelo banco):
@@ -83,13 +86,21 @@ class OrderServiceApplicationTests {
 
 		assertThatThrownBy(() -> transactionTemplate.executeWithoutResult(status -> {
 			orderId[0] = orderService.create(
-					new OrderCreateRequest("cliente-rollback", "Notebook", new BigDecimal("10.00"))).getId();
+					new OrderCreateRequest("cliente-rollback", "Notebook", 1000L)).getId();
 			throw new IllegalStateException("falha depois de gravar");
 		})).hasMessage("falha depois de gravar");
 
 		assertThat(orderRepository.existsById(orderId[0])).isFalse();
 		assertThat(outboxEventRepository.findAll())
 				.noneMatch(event -> event.getPayload().contains(orderId[0].toString()));
+	}
+
+	// Centavos fracionados não podem ser truncados em silêncio (1055.5 viraria 1055).
+	@Test
+	void fractionalCentsAreRejected() {
+		assertThatThrownBy(() -> jsonMapper.readValue(
+				"{\"customerId\":\"c\",\"product\":\"p\",\"totalAmountInCents\":1055.5}", OrderCreateRequest.class))
+				.isInstanceOf(tools.jackson.core.JacksonException.class);
 	}
 
 	private ConsumerRecord<?, ?> findInOrdersTopic(String valueFragment) {

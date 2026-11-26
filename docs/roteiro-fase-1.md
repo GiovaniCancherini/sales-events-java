@@ -73,7 +73,7 @@ Simula o Kafka entregando de novo o `created` do passo 1, depois do cancelamento
 1. `Produce Message` em `orders`, key `cliente-retry`, header `{"__TypeId__": "created"}`, value sem `eventId` (é de propósito: simula um produtor que quebrou o contrato):
 
    ```json
-   {"orderId":"6f1c2a8e-0000-4000-8000-000000000099","customerId":"cliente-retry","product":"Notebook","totalAmount":100.00,"occurredAt":"2026-11-25T12:00:00Z"}
+   {"orderId":"6f1c2a8e-0000-4000-8000-000000000099","customerId":"cliente-retry","product":"Notebook","totalAmountInCents":10000,"occurredAt":"2026-11-25T12:00:00Z"}
    ```
 
 2. Resultado esperado:
