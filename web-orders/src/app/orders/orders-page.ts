@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -6,9 +6,11 @@ import { Observable } from 'rxjs';
 import { Order } from './order';
 import { OrdersApi } from './orders-api';
 
+const BRAZILIAN_REAL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
 @Component({
   selector: 'orders-page',
-  imports: [FormsModule, CurrencyPipe, DatePipe],
+  imports: [FormsModule, DatePipe],
   templateUrl: './orders-page.html',
   styleUrl: './orders-page.css',
 })
@@ -18,6 +20,8 @@ export class OrdersPage implements OnInit {
   protected readonly orders = signal<Order[]>([]);
   protected readonly error = signal<string | null>(null);
   protected readonly lastCorrelationId = signal<string | null>(null);
+
+  protected readonly formatAmount = (amount: number) => BRAZILIAN_REAL.format(amount);
 
   protected customerId = 'cliente-1';
   protected product = 'Notebook';
