@@ -1,0 +1,42 @@
+<section class="orders">
+  <h2>Pedidos</h2>
+
+  <form class="create" (ngSubmit)="create()">
+    <label>Cliente <input name="customerId" [(ngModel)]="customerId" required /></label>
+    <label>Produto <input name="product" [(ngModel)]="product" required /></label>
+    <label>Valor <input name="totalAmount" type="number" step="0.01" min="0.01" [(ngModel)]="totalAmount" required /></label>
+    <button type="submit">Criar pedido</button>
+    <button type="button" (click)="load()">Atualizar lista</button>
+  </form>
+
+  @if (error()) {
+    <p class="error">{{ error() }}</p>
+  }
+  @if (lastCorrelationId()) {
+    <p class="correlation">Última requisição: <code>X-Correlation-Id {{ lastCorrelationId() }}</code></p>
+  }
+
+  <table>
+    <thead>
+      <tr><th>Cliente</th><th>Produto</th><th>Valor</th><th>Status</th><th>Criado em</th><th></th></tr>
+    </thead>
+    <tbody>
+      @for (order of orders(); track order.id) {
+        <tr>
+          <td>{{ order.customerId }}</td>
+          <td>{{ order.product }}</td>
+          <td>{{ order.totalAmount | currency: 'BRL' }}</td>
+          <td>{{ order.status }}</td>
+          <td>{{ order.createdAt | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+          <td>
+            @if (order.status === 'CREATED') {
+              <button type="button" (click)="cancel(order)">Cancelar</button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr><td colspan="6">Nenhum pedido.</td></tr>
+      }
+    </tbody>
+  </table>
+</section>

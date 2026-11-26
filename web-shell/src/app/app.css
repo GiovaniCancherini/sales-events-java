@@ -1,0 +1,6 @@
+:host { font-family: system-ui, sans-serif; display: block; }
+.shell-header { display: flex; gap: 2rem; align-items: center; padding: 0.75rem 1rem; background: #1c1b22; color: #fff; }
+.shell-header nav { display: flex; gap: 1rem; }
+.shell-header a { color: #ddd; text-decoration: none; }
+.shell-header a.active { color: #e8541e; font-weight: 600; }
+.shell-main { padding: 1rem; }
