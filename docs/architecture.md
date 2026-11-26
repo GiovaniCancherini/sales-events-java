@@ -44,6 +44,8 @@ flowchart LR
 
 | Contêiner | Tecnologia | Papel |
 |---|---|---|
+| `web-shell` | Angular 22.2, Native Federation | Host: layout, roteamento e carregamento do remote em runtime pelo manifesto (ADR 10) |
+| `web-orders` | Angular 22.2, Native Federation | Remote: expõe as rotas de pedidos (listar, criar, cancelar) e chama o gateway |
 | `api-gateway` | Java 17, Spring Boot 4, Spring Cloud Gateway (WebFlux) | Entrada única do front: `/api/orders/**` para o `order-service`, CORS e `X-Correlation-Id` (ADR 9) |
 | `order-service` | Java 17, Spring Boot 4, Web, Data JPA, Spring Kafka | API REST de pedidos (criar, atualizar, listar paginado, cancelar); eventos gravados no outbox na mesma transação e publicados pelo `OutboxRelay` |
 | `inventory-service` | Java 17, Spring Boot 4, Data JPA, Spring Kafka | Consome `orders`: reserva no `created`, libera no `cancelled`; idempotente por `eventId` (`processed_events`); 3 tentativas e depois `orders.DLT` |
@@ -51,14 +53,13 @@ flowchart LR
 | PostgreSQL | 1 instância | Dados do `order-service` (`orders`, `outbox_events`) |
 | Kafka | KRaft, 1 broker, tópicos `orders` e `orders.DLT` com 3 partições | Eventos `created`, `updated`, `cancelled`, chave = `customerId` |
 
-Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox, API gateway).
+Decisões já registradas: [docs/adr](adr/) (tópico com dono, valor monetário com duas casas, concorrência otimista, paginação, tipo do evento no header, ciclo de vida do pedido, consumidor idempotente e DLT, outbox, API gateway, micro front-ends).
 
 ### Alvo (proposta)
 
 | Contêiner | Tecnologia | Papel novo |
 |---|---|---|
-| `web-shell` | Angular | Host dos micro front-ends: layout, roteamento, carregamento dos remotes |
-| `web-orders` | Angular | Remote: lista e cria pedidos |
+| `web-shell` e `web-orders` | Angular | Já existem (fase 3) |
 | `web-catalog` | Angular | Remote: produtos, consome a `sales-api` (.NET) |
 | `api-gateway` | Spring Cloud Gateway | Já existe (fase 3); ganha a rota da `sales-api` na fase 5 |
 | `order-service` | Java, Spring Boot | Já com outbox (fase 2); segue como está |
@@ -135,7 +136,7 @@ sequenceDiagram
 
 Falha no processamento tem 3 tentativas com 1s de intervalo e depois vai para o `orders.DLT`, com o motivo nos headers; erro de desserialização vai direto. A chave primária de `processed_events` garante que a mesma mensagem não produz efeito duas vezes. Detalhes e alternativas: [ADR 7](adr/0007-consumidor-idempotente-e-dlt.md).
 
-### 3.4 Alvo: micro front-ends
+### 3.4 Hoje: micro front-ends (fase 3; o remote catalog vem na fase 5)
 
 ```mermaid
 flowchart TB
@@ -170,7 +171,7 @@ Critérios: custo zero comprovado, limite de memória e tempo ocioso, e se roda 
 
 | Decisão | Opções | Situação |
 |---|---|---|
-| Versão do Angular | v22 (mais recente), v21 (LTS), v20 (LTS até 28/11/2026) | Ver seção 7 |
+| Versão do Angular | v22 (mais recente), v21 (LTS), v20 (LTS até 28/11/2026) | Decidido: 22.2.6 fixado, a mais nova suportada pela Native Federation 22.2.5 (ADR 10), 25/11/2026 |
 | Papel do consumidor | estoque, faturamento, notificação | Decidido: estoque (`inventory-service`), 19/11/2026 |
 | Faturamento em .NET | consumir `orders` e chamar a `sales-api` | Fase seguinte |
 | Spring Cloud no projeto | Gateway; Gateway com Eureka e Config Server; Spring Cloud Stream | Decidido: só o Gateway, na fase 3 (25/11/2026). No Compose, o DNS da rede já resolve o endereço dos serviços, então Eureka seria peça sem função; Config Server, idem, com um `application.properties` por serviço |
@@ -192,7 +193,7 @@ Recomendação: começar na v22 (ou v21, se a biblioteca de federação escolhid
 
 1. Fase 1: `inventory-service` idempotente, retry e Dead Letter Topic, com teste de integração. Feita em 19/11/2026.
 2. Fase 2: outbox no `order-service`. Feita em 25/11/2026.
-3. Fase 3: `api-gateway` (Spring Cloud Gateway), shell e remote Angular rodando com o `order-service` através dele.
+3. Fase 3: `api-gateway` (Spring Cloud Gateway), shell e remote Angular rodando com o `order-service` através dele. Feita em 25/11/2026.
 4. Fase 4: observabilidade (métricas e traces).
 5. Fase 5: `billing-consumer` .NET e remote catalog.
 6. Fase 6: deploy em plano gratuito.

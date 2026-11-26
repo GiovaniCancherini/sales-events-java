@@ -33,7 +33,7 @@ Três serviços deployáveis separadamente, cada um com seu próprio `pom.xml` e
 
 ## Stack
 
-Java 17, Spring Boot 4, Spring Cloud Gateway, Spring Web, Spring Data JPA, Spring Kafka, PostgreSQL, Docker Compose, Testcontainers. Kafka roda em modo KRaft (sem Zookeeper).
+Java 17, Spring Boot 4, Spring Cloud Gateway, Angular 22 com Native Federation, Spring Web, Spring Data JPA, Spring Kafka, PostgreSQL, Docker Compose, Testcontainers. Kafka roda em modo KRaft (sem Zookeeper).
 
 ## Como rodar
 
@@ -51,6 +51,7 @@ docker compose up --build
 
 Isso sobe dois Postgres (um por serviço), Kafka (KRaft, 1 broker) e os dois serviços.
 
+- Front (fora do compose, por enquanto): `npm install` e `npm start` em `web-orders` e em `web-shell`; abra http://localhost:4200
 - `api-gateway`: http://localhost:8080 (entrada do front: `/api/orders/**` vai para o `order-service`)
 - `order-service`: http://localhost:8081
 - `inventory-service`: http://localhost:8082 (só expõe health check; o trabalho dele aparece no log e no banco `inventory`, em `localhost:5434`)
@@ -119,7 +120,7 @@ No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Tes
 
 ### Teste manual
 
-O [roteiro da fase 3](docs/roteiro-fase-3.md) mostra o gateway: rota, id de correlação e CORS. O [roteiro da fase 2](docs/roteiro-fase-2.md) mostra o outbox: o evento gravado junto com o pedido e esperando na tabela enquanto o Kafka está fora. O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
+O [roteiro da fase 3](docs/roteiro-fase-3.md) mostra o gateway (rota, id de correlação e CORS) e os micro front-ends (remote sozinho, shell carregando o remote em runtime, remote fora do ar). O [roteiro da fase 2](docs/roteiro-fase-2.md) mostra o outbox: o evento gravado junto com o pedido e esperando na tabela enquanto o Kafka está fora. O [roteiro da fase 1](docs/roteiro-fase-1.md) percorre os mesmos casos à mão: caminho feliz, mensagem duplicada, mensagem que não desserializa e retry até o DLT. Usa a coleção do Insomnia em [docs/insomnia](docs/insomnia/sales-events.json) e o Kafka UI, que sobe só quando pedido:
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.tools.yml up -d
@@ -181,6 +182,8 @@ sales-events-java/
 ├── docker-compose.tools.yml   # override opcional: Kafka UI (porta 8090)
 ├── docs/adr/            # registros de decisão de arquitetura (ADRs)
 ├── api-gateway/         # Spring Cloud Gateway: rotas, CORS e id de correlação
+├── web-shell/           # Angular 22.2: shell (host) dos micro front-ends, porta 4200
+├── web-orders/          # Angular 22.2: remote de pedidos (Native Federation), porta 4201
 ├── order-service/       # API REST + Postgres + outbox (relay publica no Kafka)
 └── inventory-service/   # consumidor Kafka idempotente + Postgres próprio
 ```

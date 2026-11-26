@@ -1,6 +1,6 @@
 # Roteiro de teste manual: Fase 3 (gateway e micro front-ends)
 
-Ver o front entrando por um ponto só: o `api-gateway` roteia, controla o CORS e marca cada requisição com um id de correlação. A parte do Angular (shell e remote) entra neste roteiro quando existir.
+Ver o front entrando por um ponto só: o `api-gateway` roteia, controla o CORS e marca cada requisição com um id de correlação. Depois, o shell em Angular carregando o remote de pedidos em tempo de execução.
 
 ## Preparação
 
@@ -48,4 +48,40 @@ curl -i -X OPTIONS http://localhost:8080/api/orders -H "Origin: https://site-qua
 
 Resultado esperado: o primeiro responde 200 com `Access-Control-Allow-Origin: http://localhost:4200`; o segundo, 403.
 
-**O que prova:** só as origens dos front-ends podem chamar a API pelo navegador. O teste de verdade, com o shell em Angular, entra quando ele existir.
+**O que prova:** só as origens dos front-ends podem chamar a API pelo navegador. O cenário 7 repete isso no navegador de verdade.
+
+## 5. Remote rodando sozinho
+
+1. Em dois terminais, a partir da raiz do repo (na primeira vez, rode `npm install` em cada pasta):
+
+   ```bash
+   cd web-orders && npm start
+   cd web-shell && npm start
+   ```
+
+2. Abra http://localhost:4201: a tela de pedidos aparece com a faixa "web-orders rodando sozinho". Crie e cancele um pedido.
+   - A tela mostra o `X-Correlation-Id` da última requisição.
+   - Log do `inventory-service`: `Estoque reservado` e `Reserva liberada`.
+
+**O que prova:** o remote é um app completo, que um time desenvolve e testa sem o shell.
+
+## 6. Shell carregando o remote em tempo de execução
+
+1. Abra http://localhost:4200 e clique em `Pedidos`.
+2. DevTools (F12) > `Network`: ao clicar, o navegador baixa `http://localhost:4201/remoteEntry.json` e os arquivos do remote. Antes do clique, nada do remote é baixado.
+3. Ainda na aba `Network`, recarregue a página com o filtro `_angular_core.` (o build renomeia `@angular/core` para `_angular_core.<hash>-dev.js`): aparece uma linha só, vinda de `localhost:4200`. O remote também tem a sua cópia no `dist`, mas o navegador nunca baixa: shell e remote usam a mesma (singleton).
+
+**O que prova:** o shell não conhece o código do remote em build; só o endereço, lido do `federation.manifest.json` quando a página abre. Publicar uma versão nova do remote não exige rebuild do shell.
+
+## 7. CORS no navegador
+
+1. Em http://localhost:4200, na tela de pedidos, crie um pedido: funciona, porque `localhost:4200` está nas origens liberadas do gateway.
+2. Pare o gateway (`docker compose stop api-gateway`) e clique em `Atualizar lista`: aparece "Sem resposta do gateway". Suba de novo (`docker compose start api-gateway`).
+
+## 8. Remote fora do ar
+
+1. Pare o `web-orders` (Ctrl+C no terminal dele).
+2. Em http://localhost:4200, recarregue a página e clique em `Pedidos`: aparece "Pedidos indisponível", e o menu e a página inicial continuam funcionando.
+3. Suba o `web-orders` de novo e recarregue: a tela volta.
+
+**O que prova:** um remote com problema não derruba o shell. É o tipo de falha que só existe em micro front-end: a tela depende de um deploy que não é o seu.
