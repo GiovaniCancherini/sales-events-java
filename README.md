@@ -1,6 +1,6 @@
 # Sales Events: Java, Spring Boot, Kafka
 
-Sistema de pedidos com dois serviços independentes, comunicando por eventos via Kafka. Mesmo domínio (vendas/pedidos) que o projeto [abi-gth-omnia-developer-evaluation-NET2025](https://github.com/GiovaniCancherini/abi-gth-omnia-developer-evaluation-NET2025), agora implementado com stack Java e arquitetura orientada a eventos.
+Sistema de pedidos com serviços independentes que se comunicam por eventos via Kafka, atrás de um API gateway e com front-end em micro front-ends Angular. Mesmo domínio (vendas/pedidos) que a [Sales API em .NET](https://github.com/GiovaniCancherini/sales-api-dotnet), agora implementado com stack Java e arquitetura orientada a eventos.
 
 ## Arquitetura
 
@@ -49,7 +49,7 @@ O `.env.example` mostra como gerar um valor aleatório. Sem o `.env`, o `docker 
 docker compose up --build
 ```
 
-Isso sobe dois Postgres (um por serviço), Kafka (KRaft, 1 broker) e os dois serviços.
+Isso sobe dois Postgres (um por serviço), Kafka (KRaft, 1 broker) e os três serviços (`api-gateway`, `order-service` e `inventory-service`).
 
 - Front (fora do compose, por enquanto): `npm install` e `npm start` em `web-orders` e em `web-shell`; abra http://localhost:4200
 - `api-gateway`: http://localhost:8080 (entrada do front: `/api/orders/**` vai para o `order-service`)
@@ -116,7 +116,7 @@ cd ../inventory-service && ./mvnw test
 cd ../api-gateway && ./mvnw test
 ```
 
-No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka em cada serviço), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no `inventory-service`, testes pelo Kafka de verdade: o tipo pelo header e o valor com as 2 casas; um `created` duplicado que chega depois do `cancelled` não volta a reservar; uma mensagem que não desserializa cai no `orders.DLT`; e uma falha de processamento tem 3 tentativas antes de ir para o DLT, com o header de tipo mantido. No `api-gateway`, os testes usam um `HttpServer` do JDK no lugar do `order-service` (sem Docker) e conferem a rota sem o `/api`, o id de correlação gerado, aceito ou trocado quando inválido, e o CORS liberado para o shell e recusado para outra origem.
+No CMD do Windows, use `mvnw` sem o `./`. Só precisa do Docker rodando: com Testcontainers, os testes sobem containers próprios em portas aleatórias (Postgres e Kafka em cada serviço), então não dependem do compose nem de porta livre na máquina. Hoje há o teste de contexto em cada serviço, testes de domínio do `Order` (escala do valor e regras do cancelamento) e, no `inventory-service`, testes pelo Kafka de verdade: o tipo pelo header e o valor em centavos; um `created` duplicado que chega depois do `cancelled` não volta a reservar; uma mensagem que não desserializa cai no `orders.DLT`; e uma falha de processamento tem 3 tentativas antes de ir para o DLT, com o header de tipo mantido. No `api-gateway`, os testes usam um `HttpServer` do JDK no lugar do `order-service` (sem Docker) e conferem a rota sem o `/api`, o id de correlação gerado, aceito ou trocado quando inválido, e o CORS liberado para o shell e recusado para outra origem.
 
 ### Teste manual
 
