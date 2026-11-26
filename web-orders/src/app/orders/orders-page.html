@@ -4,8 +4,8 @@
   <form class="create" (ngSubmit)="create()">
     <label>Cliente <input name="customerId" [(ngModel)]="customerId" required /></label>
     <label>Produto <input name="product" [(ngModel)]="product" required /></label>
-    <label>Valor <input name="totalAmount" type="number" step="0.01" min="0.01" [(ngModel)]="totalAmount" required /></label>
-    <button type="submit">Criar pedido</button>
+    <label>Valor <input name="totalAmount" inputmode="numeric" #amount [value]="formatAmount(amountInCents() / 100)" (input)="onAmountInput(amount)" /></label>
+    <button type="submit" [disabled]="amountInCents() === 0">Criar pedido</button>
     <button type="button" (click)="load()">Atualizar lista</button>
   </form>
 

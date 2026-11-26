@@ -7,6 +7,7 @@ import { Order } from './order';
 import { OrdersApi } from './orders-api';
 
 const BRAZILIAN_REAL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const MAXIMUM_AMOUNT_DIGITS = 15;
 
 @Component({
   selector: 'orders-page',
@@ -25,7 +26,13 @@ export class OrdersPage implements OnInit {
 
   protected customerId = 'cliente-1';
   protected product = 'Notebook';
-  protected totalAmount = 4500;
+  protected readonly amountInCents = signal(450000);
+
+  protected onAmountInput(input: HTMLInputElement): void {
+    const digits = input.value.replace(/\D/g, '').slice(-MAXIMUM_AMOUNT_DIGITS);
+    this.amountInCents.set(Number(digits));
+    input.value = this.formatAmount(this.amountInCents() / 100);
+  }
 
   ngOnInit(): void {
     this.load();
@@ -36,7 +43,7 @@ export class OrdersPage implements OnInit {
   }
 
   protected create(): void {
-    const request = { customerId: this.customerId, product: this.product, totalAmount: this.totalAmount };
+    const request = { customerId: this.customerId, product: this.product, totalAmount: this.amountInCents() / 100 };
     this.call(this.api.create(request), () => this.load());
   }
 
