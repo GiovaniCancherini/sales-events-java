@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { HttpErrorResponse, HttpResponse } from '@angular/common/http';
 import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -6,9 +6,12 @@ import { Observable } from 'rxjs';
 import { Order } from './order';
 import { OrdersApi } from './orders-api';
 
+const BRAZILIAN_REAL = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const MAXIMUM_AMOUNT_DIGITS = 15;
+
 @Component({
   selector: 'orders-page',
-  imports: [FormsModule, CurrencyPipe, DatePipe],
+  imports: [FormsModule, DatePipe],
   templateUrl: './orders-page.html',
   styleUrl: './orders-page.css',
 })
@@ -19,9 +22,17 @@ export class OrdersPage implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly lastCorrelationId = signal<string | null>(null);
 
+  protected readonly formatAmount = (amount: number) => BRAZILIAN_REAL.format(amount);
+
   protected customerId = 'cliente-1';
   protected product = 'Notebook';
-  protected totalAmount = 4500;
+  protected readonly amountInCents = signal(450000);
+
+  protected onAmountInput(input: HTMLInputElement): void {
+    const digits = input.value.replace(/\D/g, '').slice(-MAXIMUM_AMOUNT_DIGITS);
+    this.amountInCents.set(Number(digits));
+    input.value = this.formatAmount(this.amountInCents() / 100);
+  }
 
   ngOnInit(): void {
     this.load();
@@ -32,7 +43,7 @@ export class OrdersPage implements OnInit {
   }
 
   protected create(): void {
-    const request = { customerId: this.customerId, product: this.product, totalAmount: this.totalAmount };
+    const request = { customerId: this.customerId, product: this.product, totalAmount: this.amountInCents() / 100 };
     this.call(this.api.create(request), () => this.load());
   }
 
