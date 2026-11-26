@@ -22,7 +22,7 @@ export class OrdersPage implements OnInit {
   protected readonly error = signal<string | null>(null);
   protected readonly lastCorrelationId = signal<string | null>(null);
 
-  protected readonly formatAmount = (amount: number) => BRAZILIAN_REAL.format(amount);
+  protected readonly formatCents = (cents: number) => BRAZILIAN_REAL.format(cents / 100);
 
   protected customerId = 'cliente-1';
   protected product = 'Notebook';
@@ -31,7 +31,7 @@ export class OrdersPage implements OnInit {
   protected onAmountInput(input: HTMLInputElement): void {
     const digits = input.value.replace(/\D/g, '').slice(-MAXIMUM_AMOUNT_DIGITS);
     this.amountInCents.set(Number(digits));
-    input.value = this.formatAmount(this.amountInCents() / 100);
+    input.value = this.formatCents(this.amountInCents());
   }
 
   ngOnInit(): void {
@@ -43,7 +43,7 @@ export class OrdersPage implements OnInit {
   }
 
   protected create(): void {
-    const request = { customerId: this.customerId, product: this.product, totalAmount: this.amountInCents() / 100 };
+    const request = { customerId: this.customerId, product: this.product, totalAmountInCents: this.amountInCents() };
     this.call(this.api.create(request), () => this.load());
   }
 

@@ -1,5 +1,6 @@
 package com.giovanicancherini.orderservice.service;
 
+import com.giovanicancherini.orderservice.Cents;
 import com.giovanicancherini.orderservice.api.OrderCreateRequest;
 import com.giovanicancherini.orderservice.api.OrderUpdateRequest;
 import com.giovanicancherini.orderservice.domain.Order;
@@ -32,14 +33,14 @@ public class OrderService {
     @Transactional
     public Order create(OrderCreateRequest request) {
         Order order = orderRepository.save(
-                new Order(request.customerId(), request.product(), request.totalAmount()));
+                new Order(request.customerId(), request.product(), Cents.toAmount(request.totalAmountInCents())));
 
         eventOutbox.addCreated(new OrderCreatedEvent(
                 UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
                 order.getProduct(),
-                order.getTotalAmount(),
+                Cents.fromAmount(order.getTotalAmount()),
                 Instant.now()
         ));
 
@@ -50,13 +51,13 @@ public class OrderService {
     public Order update(UUID id, OrderUpdateRequest request) {
         Order order = getById(id);
 
-        order.updateTotalAmount(request.totalAmount());
+        order.updateTotalAmount(Cents.toAmount(request.totalAmountInCents()));
 
         eventOutbox.addUpdated(new OrderUpdatedEvent(
                 UUID.randomUUID(),
                 order.getId(),
                 order.getCustomerId(),
-                order.getTotalAmount(),
+                Cents.fromAmount(order.getTotalAmount()),
                 Instant.now()
         ));
 

@@ -1,6 +1,5 @@
 package com.giovanicancherini.inventoryservice.event;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,7 +13,7 @@ public record OrderCreatedEvent(
         UUID orderId,
         String customerId,
         String product,
-        BigDecimal totalAmount,
+        long totalAmountInCents,
         Instant occurredAt
 ) {
 }

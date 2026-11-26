@@ -54,13 +54,13 @@ class InventoryServiceApplicationTests {
 	}
 
 	// Caminho real do consumidor: token no header, desserialização tipada e
-	// @KafkaHandler. O valor tem que chegar com as 2 casas (4500.00, não 4500.0).
+	// @KafkaHandler. O valor chega em centavos inteiros, sem escala para perder.
 	@Test
-	void consumesCreatedEventKeepingTheAmountScale(CapturedOutput output) throws Exception {
+	void consumesCreatedEventWithAmountInCents(CapturedOutput output) throws Exception {
 		send("created", "cliente-1", created(UUID.randomUUID(), UUID.randomUUID()));
 
 		waitUntil(() -> output.getOut().contains("Pedido criado"));
-		assertThat(output.getOut()).contains("Pedido criado: cliente=cliente-1 produto=Notebook valor=4500.00");
+		assertThat(output.getOut()).contains("Pedido criado: cliente=cliente-1 produto=Notebook valorEmCentavos=450000");
 	}
 
 	// Redelivery do created depois do cancelamento: sem o processed_events, o save
@@ -103,7 +103,7 @@ class InventoryServiceApplicationTests {
 		String customerId = "cliente-sem-event-id-" + UUID.randomUUID();
 		send("created", customerId, """
 				{"orderId":"%s","customerId":"%s","product":"Notebook",\
-				"totalAmount":4500.00,"occurredAt":"2026-10-19T20:00:00Z"}"""
+				"totalAmountInCents":450000,"occurredAt":"2026-10-19T20:00:00Z"}"""
 				.formatted(UUID.randomUUID(), customerId));
 
 		ConsumerRecord<?, ?> deadLetter = findInDeadLetterTopic(customerId);
@@ -146,7 +146,7 @@ class InventoryServiceApplicationTests {
 	private static String created(UUID eventId, UUID orderId, String customerId) {
 		return """
 				{"eventId":"%s","orderId":"%s","customerId":"%s",\
-				"product":"Notebook","totalAmount":4500.00,"occurredAt":"2026-10-19T20:00:00Z"}"""
+				"product":"Notebook","totalAmountInCents":450000,"occurredAt":"2026-10-19T20:00:00Z"}"""
 				.formatted(eventId, orderId, customerId);
 	}
 
