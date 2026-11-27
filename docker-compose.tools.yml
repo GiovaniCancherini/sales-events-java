@@ -1,6 +1,7 @@
-# Destino OTLP dos serviços quando as ferramentas estão no ar: traces e métricas para o LGTM.
+# Destino OTLP dos serviços quando as ferramentas estão no ar: traces, logs e métricas para o LGTM.
 x-otel-export: &otel-export
   MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://lgtm:4318/v1/traces
+  MANAGEMENT_OPENTELEMETRY_LOGGING_EXPORT_OTLP_ENDPOINT: http://lgtm:4318/v1/logs
   MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "true"
   MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://lgtm:4318/v1/metrics
 
