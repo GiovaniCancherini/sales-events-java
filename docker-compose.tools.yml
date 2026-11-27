@@ -1,3 +1,9 @@
+# Destino OTLP dos serviços quando as ferramentas estão no ar: traces e métricas para o LGTM.
+x-otel-export: &otel-export
+  MANAGEMENT_OPENTELEMETRY_TRACING_EXPORT_OTLP_ENDPOINT: http://lgtm:4318/v1/traces
+  MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "true"
+  MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://lgtm:4318/v1/metrics
+
 services:
   kafka-ui:
     image: ghcr.io/kafbat/kafka-ui:v1.2.0
@@ -9,3 +15,19 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+
+  # Grafana com Tempo (traces), Loki (logs), Prometheus (métricas) e coletor OpenTelemetry num contêiner só.
+  # Grafana em http://localhost:3000. Os serviços mandam OTLP por HTTP para a porta 4318.
+  lgtm:
+    image: grafana/otel-lgtm:0.40.0
+    ports:
+      - "3000:3000"
+
+  api-gateway:
+    environment: *otel-export
+
+  order-service:
+    environment: *otel-export
+
+  inventory-service:
+    environment: *otel-export

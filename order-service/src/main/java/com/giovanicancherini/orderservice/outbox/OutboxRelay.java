@@ -7,8 +7,11 @@ import org.springframework.kafka.support.mapping.AbstractJavaTypeMapper;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 // Publica no Kafka o que está pendente no outbox, em ordem de criação, e marca como enviado.
@@ -23,13 +26,16 @@ public class OutboxRelay {
     private final OutboxEventRepository outboxEventRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final String topic;
+    private final JsonMapper jsonMapper;
 
     public OutboxRelay(OutboxEventRepository outboxEventRepository,
                        KafkaTemplate<String, String> kafkaTemplate,
-                       @Value("${app.kafka.topic.orders}") String topic) {
+                       @Value("${app.kafka.topic.orders}") String topic,
+                       JsonMapper jsonMapper) {
         this.outboxEventRepository = outboxEventRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.topic = topic;
+        this.jsonMapper = jsonMapper;
     }
 
     // ponytail: polling a cada 500ms; CDC (Debezium) se a latência ou a carga no banco pesarem
@@ -40,9 +46,22 @@ public class OutboxRelay {
             ProducerRecord<String, String> record = new ProducerRecord<>(topic, event.getMessageKey(), event.getPayload());
             record.headers().add(AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
                     event.getType().getBytes(StandardCharsets.UTF_8));
+            traceHeadersOf(event).forEach((name, value) ->
+                    record.headers().add(name, value.getBytes(StandardCharsets.UTF_8)));
             // Espera o ack antes do próximo: mantém a ordem por cliente e só marca o que o broker confirmou.
             kafkaTemplate.send(record).get();
             event.markSent();
         }
+    }
+
+    // ponytail: copia o contexto da requisição sem abrir span no relay; o trace mostra a espera no
+    // outbox como intervalo entre o span HTTP e o do consumidor. Span de envio próprio se a latência
+    // do Kafka precisar aparecer separada.
+    private Map<String, String> traceHeadersOf(OutboxEvent event) {
+        if (event.getTraceHeaders() == null) {
+            return Map.of();
+        }
+        return jsonMapper.readValue(event.getTraceHeaders(), new TypeReference<Map<String, String>>() {
+        });
     }
 }

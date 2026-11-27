@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.micrometer.tracing.test.autoconfigure.AutoConfigureTracing;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -24,12 +25,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
+@AutoConfigureTracing
 @Import(TestcontainersConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
 class InventoryServiceApplicationTests {
@@ -132,10 +135,30 @@ class InventoryServiceApplicationTests {
 		}
 	}
 
+	// Headers como o relay do order-service manda: o consumidor continua o trace da requisição
+	// original, e o X-Correlation-Id do gateway aparece no log de quem consome.
+	@Test
+	void consumerContinuesTheTraceAndLogsTheCorrelationId(CapturedOutput output) throws Exception {
+		String traceId = "0af7651916cd43dd8448eb211c80319c";
+		send("created", "cliente-trace", created(UUID.randomUUID(), UUID.randomUUID(), "cliente-trace"), Map.of(
+				"traceparent", "00-" + traceId + "-b7ad6b7169203331-01",
+				"X-Correlation-Id", "corr-teste-consumidor"));
+
+		waitUntil(() -> output.getOut().contains("cliente=cliente-trace"));
+		assertThat(output.getOut().lines().filter(line -> line.contains("cliente=cliente-trace")).findFirst().orElseThrow())
+				.contains(traceId)
+				.contains("corr-teste-consumidor");
+	}
+
 	private void send(String type, String key, String json) throws Exception {
+		send(type, key, json, Map.of());
+	}
+
+	private void send(String type, String key, String json, Map<String, String> extraHeaders) throws Exception {
 		ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, json);
 		record.headers().add(AbstractJavaTypeMapper.DEFAULT_CLASSID_FIELD_NAME,
 				type.getBytes(StandardCharsets.UTF_8));
+		extraHeaders.forEach((name, value) -> record.headers().add(name, value.getBytes(StandardCharsets.UTF_8)));
 		kafkaTemplate.send(record).get();
 	}
 

@@ -9,6 +9,8 @@ import com.giovanicancherini.orderservice.event.OrderCreatedEvent;
 import com.giovanicancherini.orderservice.event.OrderEventOutbox;
 import com.giovanicancherini.orderservice.event.OrderUpdatedEvent;
 import com.giovanicancherini.orderservice.repository.OrderRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,8 @@ import java.util.UUID;
 public class OrderService {
 
     private final OrderRepository orderRepository;
+    private static final Logger log = LoggerFactory.getLogger(OrderService.class);
+
     private final OrderEventOutbox eventOutbox;
 
     public OrderService(OrderRepository orderRepository, OrderEventOutbox eventOutbox) {
@@ -44,6 +48,7 @@ public class OrderService {
                 Instant.now()
         ));
 
+        log.info("Pedido criado: pedido={} cliente={}", order.getId(), order.getCustomerId());
         return order;
     }
 
@@ -61,6 +66,7 @@ public class OrderService {
                 Instant.now()
         ));
 
+        log.info("Pedido atualizado: pedido={} cliente={}", order.getId(), order.getCustomerId());
         return order;
     }
 
@@ -77,6 +83,7 @@ public class OrderService {
                 Instant.now()
         ));
 
+        log.info("Pedido cancelado: pedido={} cliente={}", order.getId(), order.getCustomerId());
         return order;
     }
 

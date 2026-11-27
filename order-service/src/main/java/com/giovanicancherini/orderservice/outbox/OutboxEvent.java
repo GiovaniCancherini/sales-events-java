@@ -24,6 +24,11 @@ public class OutboxEvent {
     @Column(nullable = false, columnDefinition = "text")
     private String payload;
 
+    // Headers de contexto (traceparent, X-Correlation-Id) da requisição que gerou o evento, em JSON.
+    // O relay roda em outra thread, sem trace ativo, e os repassa na mensagem.
+    @Column(columnDefinition = "text")
+    private String traceHeaders;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -33,11 +38,12 @@ public class OutboxEvent {
         // exigido pelo JPA
     }
 
-    public OutboxEvent(UUID id, String type, String messageKey, String payload) {
+    public OutboxEvent(UUID id, String type, String messageKey, String payload, String traceHeaders) {
         this.id = id;
         this.type = type;
         this.messageKey = messageKey;
         this.payload = payload;
+        this.traceHeaders = traceHeaders;
         this.createdAt = Instant.now();
     }
 
@@ -59,6 +65,10 @@ public class OutboxEvent {
 
     public String getPayload() {
         return payload;
+    }
+
+    public String getTraceHeaders() {
+        return traceHeaders;
     }
 
     public Instant getSentAt() {

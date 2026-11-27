@@ -1,7 +1,9 @@
 package com.giovanicancherini.orderservice;
 
+import io.micrometer.observation.ObservationPredicate;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
@@ -15,6 +17,13 @@ public class OrderServiceApplication {
 					"DB_PASSWORD is not set. Set it to ORDER_POSTGRES_PASSWORD from .env (see .env.example).");
 		}
 		SpringApplication.run(OrderServiceApplication.class, args);
+	}
+
+	// O relay roda a cada 500 ms; observado, geraria dois traces vazios por segundo.
+	// O que importa dele já viaja no trace da requisição, pelos headers guardados no outbox.
+	@Bean
+	ObservationPredicate ignoreScheduledTasks() {
+		return (name, context) -> !name.equals("tasks.scheduled.execution");
 	}
 
 }
