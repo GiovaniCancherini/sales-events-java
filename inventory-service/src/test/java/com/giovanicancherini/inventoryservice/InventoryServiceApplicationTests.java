@@ -2,6 +2,7 @@ package com.giovanicancherini.inventoryservice;
 
 import com.giovanicancherini.inventoryservice.domain.ReservationStatus;
 import com.giovanicancherini.inventoryservice.repository.ReservationRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -45,6 +46,9 @@ class InventoryServiceApplicationTests {
 
 	@Autowired
 	ReservationRepository reservationRepository;
+
+	@Autowired
+	MeterRegistry meterRegistry;
 
 	@Value("${app.kafka.topic.orders}")
 	String topic;
@@ -96,6 +100,7 @@ class InventoryServiceApplicationTests {
 		ConsumerRecord<?, ?> deadLetter = findInDeadLetterTopic(poison);
 		assertThat(deadLetter).isNotNull();
 		assertThat(deadLetter.headers().lastHeader(KafkaHeaders.DLT_EXCEPTION_FQCN)).isNotNull();
+		assertThat(meterRegistry.get("orders.dead.letter").counter().count()).isGreaterThanOrEqualTo(1);
 	}
 
 	// Falha no processamento (produtor quebrou o contrato e mandou sem eventId): o INSERT em

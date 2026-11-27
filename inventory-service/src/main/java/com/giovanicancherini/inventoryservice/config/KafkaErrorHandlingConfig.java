@@ -1,5 +1,7 @@
 package com.giovanicancherini.inventoryservice.config;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
@@ -12,6 +14,7 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.ConsumerRecordRecoverer;
 import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
 import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.DelegatingByTypeSerializer;
@@ -43,11 +46,19 @@ public class KafkaErrorHandlingConfig {
     // 3 tentativas com 1s entre elas; depois, a mensagem vai para o DLT com o motivo nos headers
     // e a partição segue. Erro de desserialização não é retentável e vai direto.
     @Bean
-    public DefaultErrorHandler errorHandler(ProducerFactory<?, ?> producerFactory) {
+    public DefaultErrorHandler errorHandler(ProducerFactory<?, ?> producerFactory, MeterRegistry meterRegistry) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 deadLetterTemplate(producerFactory),
                 (record, exception) -> new TopicPartition(deadLetterTopic, record.partition()));
-        return new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 2));
+        // Mensagem no DLT é falha que ninguém viu ainda: contada para virar alerta.
+        Counter deadLetters = Counter.builder("orders.dead.letter")
+                .description("Mensagens do tópico orders enviadas ao DLT")
+                .register(meterRegistry);
+        ConsumerRecordRecoverer countingRecoverer = (record, exception) -> {
+            recoverer.accept(record, exception);
+            deadLetters.increment();
+        };
+        return new DefaultErrorHandler(countingRecoverer, new FixedBackOff(1000L, 2));
     }
 
     // Template próprio, fora do contexto, para não substituir o KafkaTemplate do Spring Boot.

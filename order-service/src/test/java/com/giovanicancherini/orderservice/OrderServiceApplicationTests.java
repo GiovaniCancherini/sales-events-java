@@ -6,6 +6,7 @@ import com.giovanicancherini.orderservice.outbox.OutboxEvent;
 import com.giovanicancherini.orderservice.outbox.OutboxEventRepository;
 import com.giovanicancherini.orderservice.repository.OrderRepository;
 import com.giovanicancherini.orderservice.service.OrderService;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -62,6 +63,9 @@ class OrderServiceApplicationTests {
 
 	@Autowired
 	MockMvc mockMvc;
+
+	@Autowired
+	MeterRegistry meterRegistry;
 
 	@Value("${app.kafka.topic.orders}")
 	String topic;
@@ -130,6 +134,13 @@ class OrderServiceApplicationTests {
 		assertThat(record).isNotNull();
 		assertThat(header(record, "traceparent")).startsWith("00-" + traceId + "-");
 		assertThat(header(record, "X-Correlation-Id")).isEqualTo("corr-teste-trace");
+	}
+
+	// As consultas dos gauges rodam no banco real a cada exportação; erro de SQL só apareceria em produção.
+	@Test
+	void outboxGaugesReadTheDatabase() {
+		assertThat(meterRegistry.get("outbox.events.pending").gauge().value()).isGreaterThanOrEqualTo(0);
+		assertThat(meterRegistry.get("outbox.events.oldest.age").gauge().value()).isGreaterThanOrEqualTo(0);
 	}
 
 	private static String header(ConsumerRecord<?, ?> record, String name) {

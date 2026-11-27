@@ -4,6 +4,8 @@ x-otel-export: &otel-export
   MANAGEMENT_OPENTELEMETRY_LOGGING_EXPORT_OTLP_ENDPOINT: http://lgtm:4318/v1/logs
   MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "true"
   MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://lgtm:4318/v1/metrics
+  # A cada 10s, e não 1 min: o rate() do Prometheus precisa de várias amostras na janela
+  MANAGEMENT_OTLP_METRICS_EXPORT_STEP: 10s
 
 services:
   kafka-ui:

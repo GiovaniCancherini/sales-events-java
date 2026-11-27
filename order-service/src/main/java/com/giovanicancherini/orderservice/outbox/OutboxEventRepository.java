@@ -13,4 +13,11 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> 
     @Query(value = "SELECT * FROM outbox_events WHERE sent_at IS NULL ORDER BY created_at "
             + "LIMIT :batchSize FOR UPDATE SKIP LOCKED", nativeQuery = true)
     List<OutboxEvent> lockPending(int batchSize);
+
+    long countBySentAtIsNull();
+
+    // Idade da linha pendente mais antiga, em segundos; null quando não há pendente.
+    @Query(value = "SELECT EXTRACT(EPOCH FROM now() - MIN(created_at)) FROM outbox_events WHERE sent_at IS NULL",
+            nativeQuery = true)
+    Double oldestPendingAgeSeconds();
 }
